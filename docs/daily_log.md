@@ -117,3 +117,30 @@
 - Build `scripts/analytics/metrics_risk.py` — std dev, volatility, max drawdown
 - Validate against known benchmark values (e.g. Nifty 50 published CAGR)
 - Commit: `feat: returns + risk metrics`
+
+---
+
+## Day 5 — 2026-05-29
+
+**Completed:**
+- Built `scripts/analytics/metrics_returns.py` — return_1y/3y/5y, cagr_1y/3y/5y for 16 Yahoo funds
+- Built `scripts/analytics/metrics_risk.py` — std_dev_1y, max_drawdown for 16 Yahoo funds
+- Both scripts write to Fact_Returns via column-targeted UPSERT (each script only touches its own columns; Day 6 Sharpe/alpha/beta will safely merge into same rows)
+- Fixed bidirectional date gap: data starts 2021-05-31, 5Y target is 2021-05-28 — forward-gap lookup resolved this; NIFTYBEES.NS cagr_5y = 10.19%
+- **Validation PASSED**: NIFTYBEES.NS cagr_5y = 10.19% (expected 8–14%), std_dev_1y = 12.09% (expected 8–20%), max_drawdown = -16.11% (non-positive)
+- Key metric results: NIFTYBEES.NS CAGR5Y 10.19% | Gold ETF CAGR5Y 24.82% | Nifty IT index CAGR5Y 1.29% (tech correction) | Nifty 50 CAGR5Y 8.94%
+- Note: AMFI schemes have only one NAV snapshot — time-series metrics only apply to 16 Yahoo ETF/benchmark funds. Historical AMFI data (fetch_amfi_nav.py --historical) needed for AMFI scheme metrics.
+- Note: MON100.NS max_drawdown = -90.13% — data artifact from Yahoo Finance unadjusted corporate action (the is_outlier flag was set for this fund in Day 2 cleaning). Formula is correct.
+
+**Fact_Returns state:** 16 rows (return/CAGR + risk columns populated; Sharpe/Sortino/alpha/beta NULL until Day 6)
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 6):**
+- Build `scripts/analytics/metrics_risk_adjusted.py` — Sharpe, Sortino, Treynor (risk-free rate = 6.5% RBI repo)
+- Build `scripts/analytics/metrics_market.py` — Alpha, Beta vs Nifty 50 (^NSEI)
+- Write SQL views: `vw_fund_performance`, `vw_investor_segmentation`, `vw_risk_summary`
+- Write stored procs: `sp_compute_aum`, `sp_top_funds_by_category`
+- Commit: `feat: risk-adjusted metrics + SQL analytical layer`
