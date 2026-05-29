@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS dbo.Fact_Transactions (
     amount              NUMERIC(18,2)   NOT NULL,
     units               NUMERIC(18,4),              -- units purchased or redeemed
     nav_at_transaction  NUMERIC(18,4),              -- NAV at time of transaction
+    transaction_hash    CHAR(64),                   -- SHA-256 of investor|scheme|date|amount|type
 
     loaded_at           TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
 
@@ -33,6 +34,14 @@ CREATE TABLE IF NOT EXISTS dbo.Fact_Transactions (
 
 COMMENT ON TABLE dbo.Fact_Transactions IS
     'Investor transaction fact. Grain: one transaction. Supports SIP tracker, fund cashflow, and investor segmentation.';
+
+-- Unique index on SHA-256 hash — enforces dedup without a named constraint,
+-- and supports ON CONFLICT (transaction_hash) DO NOTHING in the ETL UPSERT.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fact_txn_hash
+    ON dbo.Fact_Transactions (transaction_hash);
+
+COMMENT ON INDEX dbo.idx_fact_txn_hash IS
+    'Dedup guard: prevents double-loading the same transaction on ETL re-runs.';
 
 -- Investor portfolio view: "all transactions for INV00042, sorted by date".
 -- investor_key leads — most Streamlit and Power BI queries filter by investor first.
