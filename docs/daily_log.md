@@ -85,3 +85,35 @@
 - Build `scripts/etl/generate_dim_date.py` — generate 2015–2026 date spine
 - Verify row counts and referential integrity
 - Commit: `feat: ETL pipeline to star schema`
+
+---
+
+## Day 4 — 2026-05-29
+
+**Completed:**
+- Built `scripts/etl/load_dimensions.py` — loads all 5 Dim tables with UPSERT, bulk execute_values
+  - Dim_Date: 4,383-row Indian FY date spine (2015–2026), vectorised pandas, no loops
+  - Dim_AMC: 51 rows, amc_short_name derived from name
+  - Dim_Category: 50 rows, dual-regex parser (42 primary + 8 secondary pattern)
+  - Dim_Fund: 14,368 AMFI + 16 Yahoo = 14,384 rows; plan/option/base_name parsed from scheme names; ISINs joined from raw parquet
+  - Dim_Investor: 500 synthetic investors, seed=42, realistic Indian city/state/age/risk distribution
+- Built `scripts/etl/load_facts.py` — loads 3 fact tables with UPSERT + referential integrity check
+  - Fact_NAV: 32,607 rows (409 dropped: 29 pre-2015 dates + 380 zero-NAV newly-registered schemes)
+  - Fact_Transactions: 35,280 rows, 0 dropped; SHA-256 dedup hash (transaction_hash CHAR(64))
+  - Fact_SIP: 28,224 monthly records derived in-memory from txn data (no DB round-trip)
+- Added `transaction_hash` column via idempotent migration in load_facts.py (ADD COLUMN IF NOT EXISTS + CREATE UNIQUE INDEX IF NOT EXISTS)
+- Fixed: ADD CONSTRAINT IF NOT EXISTS not supported in PostgreSQL — switched to CREATE UNIQUE INDEX IF NOT EXISTS
+- Fixed: 380 zero-NAV AMFI rows (newly-registered schemes) filtered at ETL boundary before CHECK constraint
+- **Referential integrity: PASSED** — 0 orphan rows in Fact_NAV, 0 orphan rows in Fact_Transactions
+
+**Schema state:** All 8 tables loaded (Fact_Returns remains empty — populated Day 5-6).
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 5):**
+- Build `scripts/analytics/metrics_returns.py` — CAGR, rolling returns (1Y/3Y/5Y)
+- Build `scripts/analytics/metrics_risk.py` — std dev, volatility, max drawdown
+- Validate against known benchmark values (e.g. Nifty 50 published CAGR)
+- Commit: `feat: returns + risk metrics`
