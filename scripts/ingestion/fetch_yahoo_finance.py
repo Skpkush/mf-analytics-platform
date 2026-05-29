@@ -73,12 +73,22 @@ BENCHMARK_TICKERS = {
 # ----------------------------------------------------------------
 # Logging setup
 # ----------------------------------------------------------------
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setFormatter(
+    logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
+)
+if hasattr(_stream_handler.stream, "reconfigure"):
+    try:
+        _stream_handler.stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     handlers=[
-        logging.FileHandler(LOG_DIR / "yahoo_ingestion.log"),
-        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(LOG_DIR / "yahoo_ingestion.log", encoding="utf-8"),
+        _stream_handler,
     ],
 )
 logger = logging.getLogger("yahoo_ingestion")
