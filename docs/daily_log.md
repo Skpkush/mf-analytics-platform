@@ -144,3 +144,36 @@
 - Write SQL views: `vw_fund_performance`, `vw_investor_segmentation`, `vw_risk_summary`
 - Write stored procs: `sp_compute_aum`, `sp_top_funds_by_category`
 - Commit: `feat: risk-adjusted metrics + SQL analytical layer`
+
+---
+
+## Day 6 — 2026-05-29
+
+**Completed:**
+- Built `scripts/analytics/metrics_market.py` — Beta (OLS regression vs ^NSEI, 1,232 common days) + Jensen's Alpha (CAPM-based, longest available CAGR window)
+  - Validation PASSED: NIFTYBEES.NS beta=0.8938 (expected 0.85–1.05); ^NSEI self-check beta=1.0, alpha=0.0 ✓
+  - LIQUIDBEES.NS beta=-0.0001 (warning fired but economically correct: essentially zero correlation with equity market)
+  - Notable: GOLDBEES.NS alpha=18.12% (gold significantly outperformed CAPM prediction); ^CNXIT alpha=-7.53% (IT underperformed)
+- Built `scripts/analytics/metrics_risk_adjusted.py` — Sharpe, Sortino, Treynor (Rf=6.5% RBI repo)
+  - Validation PASSED: GOLDBEES.NS sharpe=1.50 (positive, cagr_1y=61% >> Rf); NIFTYBEES.NS sharpe=-0.68 (negative, cagr_1y=-2.43% < Rf) ✓
+  - Fixed: numpy.float64 passed raw to psycopg2 — added explicit float() cast in upsert
+  - LIQUIDBEES.NS extreme values (sharpe=-578, treynor=65,000) are mathematically correct for near-zero-vol cash-equivalent fund
+- All SQL objects created via `run_sql_layer.py`:
+  - `vw_fund_performance` — 16 rows, all 13 metrics populated, Power BI primary source
+  - `vw_investor_segmentation` — 500 investors with invested/redeemed/net/fund-count aggregates
+  - `vw_risk_summary` — 16 rows with SEBI riskometer tier (Very Low → Very High) classification
+  - `dbo.sp_compute_aum()` — live AUM: units × latest NAV, top fund ~INR 35.9L (synthetic data)
+  - `dbo.sp_top_funds_by_category()` — returns 0 rows for AMFI categories (expected: Yahoo ETFs have NULL category; will work once historical AMFI time-series loaded)
+
+**Fact_Returns state:** 16 rows, all 13 metric columns populated (NULL only for HDFCNIFTY/MONIFTY500 cagr_5y due to <3Y history, and LIQUIDBEES extreme ratio values are populated)
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 7):**
+- Run end-to-end local pipeline (ingest → clean → ETL → metrics)
+- Generate exploratory notebook with key visualizations
+- Document data dictionary (`docs/data_dictionary.md`)
+- Streamlit fallback test: ensure local Postgres + metrics work standalone
+- Commit: `docs: data dictionary + week 1 wrap-up`
