@@ -56,3 +56,32 @@
 - Set up local PostgreSQL, create database `mf_analytics`
 - Run DDL, verify schema
 - Commit: `feat: star schema DDL`
+
+---
+
+## Day 3 — 2026-05-29
+
+**Completed:**
+- Designed full star schema from real data (inspected processed parquets before designing)
+- Wrote 10 DDL files in `sql/ddl/` (PostgreSQL 18, dbo schema)
+  - 5 dimension tables: Dim_Date (17 cols), Dim_AMC (3), Dim_Category (5), Dim_Fund (14), Dim_Investor (8)
+  - 4 fact tables: Fact_NAV (11), Fact_Transactions (9), Fact_SIP (9), Fact_Returns (17)
+  - 26 total indexes/constraints: 9 PKs, 8 UNIQUEs, 9 non-unique indexes, business-logic CHECKs
+- Wrote `scripts/etl/run_ddl.py` — creates DB if absent, runs all DDL files in order, idempotent
+- Created `mf_analytics` database on local PostgreSQL 18
+- Verified: 9 tables, 95 constraints, 26 indexes — all in `dbo` schema
+- Fixed `COMMENT ON INDEX` to require `dbo.` schema prefix (PostgreSQL indexes inherit table schema)
+- Fixed all `CREATE INDEX` to `IF NOT EXISTS` for idempotent re-runs
+
+**Schema state:** All 9 tables empty, ready for Day 4 ETL load.
+
+**Applications submitted:** 0/10 — pending (evening session)
+
+**Blockers:** None
+
+**Tomorrow (Day 4):**
+- Build `scripts/etl/load_dimensions.py` — populate all 5 Dim tables from processed parquets
+- Build `scripts/etl/load_facts.py` — populate Fact_NAV, Fact_Transactions, Fact_SIP
+- Build `scripts/etl/generate_dim_date.py` — generate 2015–2026 date spine
+- Verify row counts and referential integrity
+- Commit: `feat: ETL pipeline to star schema`
