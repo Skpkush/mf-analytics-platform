@@ -177,3 +177,33 @@
 - Document data dictionary (`docs/data_dictionary.md`)
 - Streamlit fallback test: ensure local Postgres + metrics work standalone
 - Commit: `docs: data dictionary + week 1 wrap-up`
+
+---
+
+## Day 7 — 2026-05-29
+
+**Completed:**
+- Full end-to-end pipeline run (12 scripts, all passed):
+  - Ingestion: AMFI 14,368 schemes ✓ | Yahoo 11/16 ETFs + 5/5 benchmarks ✓
+  - Cleaning: 3/3 quality reports PASSED (nav_yahoo, nav_amfi, transactions) ✓
+  - ETL: Fact_NAV 32,607 | Fact_Transactions 35,280 | Fact_SIP 28,224 — referential integrity PASSED ✓
+  - Metrics: 5/5 validations PASSED (NIFTYBEES cagr_5y=10.19%, beta=0.8938, vol=12.09%, drawdown<0, GOLDBEES sharpe>0) ✓
+  - SQL layer: 3 views + 2 stored functions recreated ✓
+- Streamlit fallback verification: **8/8 checks PASSED — READY** (all views, sp_compute_aum, date spine, .env, referential integrity)
+- Created `notebooks/01_data_exploration.ipynb` — 8 cells: fund metrics table, NAV time series, risk-return scatter, Sharpe ranking, investor segmentation, SIP volume, AUM top 10, schema summary
+- Created `docs/data_dictionary.md` — all 9 tables documented (columns, types, PKs/FKs, row counts, examples, known limitations)
+- Fixed: Arrow character in verify_streamlit_fallback.py causing cp1252 Windows console error
+
+**Week 1 milestone (Day 7): LOCAL POSTGRESQL + ALL METRICS WORKING — STREAMLIT FALLBACK READY ✓**
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 8 — AZURE STARTS):**
+- Activate Azure free trial (set budget alert at INR 500 FIRST)
+- Create Resource Group: rg-mf-analytics
+- Provision: Storage Account (Blob), Azure SQL Database (Basic tier), Key Vault
+- Store credentials in Key Vault
+- Commit: `feat: Azure infra provisioned`
+- NOTE: Azure 15-day clock starts TODAY — screenshots + Loom video must be done by Day 14
