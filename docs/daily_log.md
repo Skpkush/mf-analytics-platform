@@ -207,3 +207,68 @@
 - Store credentials in Key Vault
 - Commit: `feat: Azure infra provisioned`
 - NOTE: Azure 15-day clock starts TODAY — screenshots + Loom video must be done by Day 14
+
+---
+
+## Day 8 — 2026-05-30
+
+**Completed:**
+- Azure free trial activated — 15-day cloud window started (expires ~2026-06-13)
+- Provisioned in `rg-mf-analytics`: Storage Account (`mfanalyticsstorage29`), Azure SQL Database Basic tier (`mf-analytics-db` on `mf-analytics-server`), containers `raw/` + `processed/` created
+- Installed ODBC Driver 18 for SQL Server on Windows 11
+- Configured `.env` with all Azure credentials (SQL + Blob); both connections tested and verified
+- Deployed full star schema to Azure SQL via `scripts/sql/push_ddl_to_azure.py`:
+  - 9 tables (5 dim + 4 fact), 10 indexes, 3 views, 2 stored procedures — 33/33 checks PASSED
+  - T-SQL conversions: BOOLEAN→BIT, SERIAL→IDENTITY(1,1), TIMESTAMPTZ→DATETIMEOFFSET, CREATE OR ALTER VIEW/PROCEDURE
+- Ran full ETL pipeline to Azure SQL via `scripts/etl/run_azure_etl.py` (pyodbc + fast_executemany):
+  - Dim_Date 4,383 | Dim_AMC 51 | Dim_Category 50 | Dim_Fund 14,384 | Dim_Investor 500
+  - Fact_NAV 32,607 | Fact_Transactions 35,280 | Fact_SIP 28,224 | Fact_Returns 16
+  - All 5 metric validations PASSED (NIFTYBEES cagr_5y=10.19%, beta=0.8938, vol=12.09%, GOLDBEES sharpe=1.50)
+- All 3 views return correct data on Azure SQL
+- SQL files moved from `sql/` → `scripts/sql/` to follow project structure convention
+
+**Azure SQL state:** Fully loaded — identical to local PostgreSQL. Cloud baseline established.
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 9):**
+- Upload processed parquets to Azure Blob Storage (`processed/` container)
+- Create ADF instance, import linked services + datasets + pipeline JSON
+- Build and test `pl_raw_to_sql` Copy Activity (parameterized)
+- Commit: `feat: ADF raw-to-SQL pipeline`
+
+---
+
+## Day 9 — 2026-05-30
+
+**Completed:**
+- Uploaded all 3 processed Parquet files to Azure Blob Storage:
+  - `raw/` container: nav_amfi_clean (399.7 KB), nav_yahoo_clean (593.7 KB), transactions_clean (599.2 KB)
+  - `processed/` container: same 3 files — matches `ds_blob_parquet` dataset path
+- Created ADF pipeline JSON definitions under `azure/`:
+  - `ls_blob_mfanalytics.json` — AzureBlobStorage linked service (mfanalyticsstorage29)
+  - `ls_sql_mfanalytics.json` — AzureSqlDatabase linked service (mf-analytics-db)
+  - `ds_blob_parquet.json` — parameterized Parquet source dataset (processed/ container)
+  - `ds_sql_table.json` — parameterized AzureSqlTable sink dataset
+  - `pl_raw_to_sql.json` — Copy Activity pipeline (p_table_name, p_blob_path, p_pre_copy_script params; retry 2×, timeout 1h, parallelCopies 4)
+- Imported all 5 JSON definitions into ADF Studio via portal
+- Published ADF artifacts (linked services → datasets → pipeline)
+- **Triggered `pl_raw_to_sql` manually — Copy Activity SUCCEEDED ✓**
+  - Test run: Dim_AMC table, nav_amfi_clean_20260529.parquet, pre-script: TRUNCATE TABLE dbo.Dim_AMC
+- Screenshots captured from ADF Studio Monitor (pipeline run + activity output)
+- Added `trigger_adf_pipeline.py` — Python SDK trigger script with browser auth + run polling
+- Gitignored `azure/linked_services/ls_*.json` (contain real credentials after placeholder replacement)
+
+**ADF state:** Pipeline `pl_raw_to_sql` live and tested. Ready for Day 10 transformation pipeline + schedule trigger.
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 10):**
+- Build `pl_transform_facts` — orchestrates fact table loads via ForEach over all tables
+- Add daily schedule trigger (6 AM IST)
+- Add monitoring + email alert on pipeline failure
+- Commit: `feat: ADF transformation pipeline`
