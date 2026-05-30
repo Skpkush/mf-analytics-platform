@@ -1,0 +1,34 @@
+{
+    "name": "ds_blob_parquet",
+    "properties": {
+        "description": "Parameterized source dataset. Points to a single Parquet file in the 'processed' container. Pass p_blob_path as the filename (e.g. 'nav_amfi_clean_20260529.parquet').",
+        "linkedServiceName": {
+            "referenceName": "ls_blob_mfanalytics",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "p_blob_path": {
+                "type": "string",
+                "defaultValue": "nav_amfi_clean_20260529.parquet"
+            }
+        },
+        "type": "Parquet",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobStorageLocation",
+                "fileName": {
+                    "value": "@dataset().p_blob_path",
+                    "type": "Expression"
+                },
+                "container": "processed"
+            },
+            "compressionCodec": "snappy"
+        },
+        "schema": [],
+        "annotations": [
+            "mf-analytics",
+            "source",
+            "parquet"
+        ]
+    }
+}
