@@ -1,0 +1,39 @@
+{
+    "name": "tr_daily_6am_ist",
+    "properties": {
+        "description": "Fires pl_transform_facts every day at 6:00 AM IST (00:30 UTC).\n\nTime zone math:\n  IST = UTC + 5:30\n  6:00 AM IST - 5:30 = 00:30 UTC\n\n@trigger().scheduledTime is passed as p_run_date so the pipeline\nbuilds the correct blob filename for that day's ingestion output.\n\nIngestion scripts must deposit processed/ blobs by 5:30 AM IST.\nThe 3 Validation activities inside pl_transform_facts give an\nadditional 10-minute grace window (polls until 6:10 AM IST).",
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+            "recurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "startTime": "2026-05-31T00:30:00Z",
+                "timeZone": "UTC",
+                "schedule": {
+                    "hours": [0],
+                    "minutes": [30]
+                }
+            }
+        },
+        "pipelines": [
+            {
+                "pipelineReference": {
+                    "referenceName": "pl_transform_facts",
+                    "type": "PipelineReference"
+                },
+                "parameters": {
+                    "p_run_date": {
+                        "value": "@trigger().scheduledTime",
+                        "type": "Expression"
+                    }
+                }
+            }
+        ],
+        "annotations": [
+            "mf-analytics",
+            "daily-trigger",
+            "6am-IST",
+            "00:30-UTC"
+        ]
+    }
+}

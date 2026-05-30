@@ -1,0 +1,109 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": {
+                "description": "Your ADF factory name — copy from Azure Portal > your Data Factory > Overview > name field."
+            }
+        },
+        "alertEmail": {
+            "type": "string",
+            "defaultValue": "sumitkprajapat@gmail.com",
+            "metadata": {
+                "description": "Email address to receive pipeline failure alerts."
+            }
+        },
+        "resourceGroupName": {
+            "type": "string",
+            "defaultValue": "rg-mf-analytics",
+            "metadata": {
+                "description": "Resource group containing the ADF factory."
+            }
+        }
+    },
+    "variables": {
+        "factoryResourceId": "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]",
+        "actionGroupName": "ag-adf-failure-email",
+        "alertRuleName": "alert-adf-pipeline-failure"
+    },
+    "resources": [
+
+        {
+            "type": "microsoft.insights/actionGroups",
+            "apiVersion": "2022-06-01",
+            "name": "[variables('actionGroupName')]",
+            "location": "global",
+            "properties": {
+                "groupShortName": "ADFFailure",
+                "enabled": true,
+                "emailReceivers": [
+                    {
+                        "name": "primary-email-receiver",
+                        "emailAddress": "[parameters('alertEmail')]",
+                        "useCommonAlertSchema": true
+                    }
+                ],
+                "smsReceivers": [],
+                "webhookReceivers": [],
+                "armRoleReceivers": []
+            }
+        },
+
+        {
+            "type": "microsoft.insights/metricalerts",
+            "apiVersion": "2018-03-01",
+            "name": "[variables('alertRuleName')]",
+            "location": "global",
+            "dependsOn": [
+                "[resourceId('microsoft.insights/actionGroups', variables('actionGroupName'))]"
+            ],
+            "properties": {
+                "description": "Fires when any pipeline in the mf-analytics ADF factory records a failed run. Email sent to alertEmail.",
+                "severity": 2,
+                "enabled": true,
+                "scopes": [
+                    "[variables('factoryResourceId')]"
+                ],
+                "evaluationFrequency": "PT1M",
+                "windowSize": "PT5M",
+                "targetResourceType": "Microsoft.DataFactory/factories",
+                "targetResourceRegion": "eastus",
+                "criteria": {
+                    "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                    "allOf": [
+                        {
+                            "name": "failed-pipeline-runs-criterion",
+                            "metricName": "PipelineFailedRuns",
+                            "metricNamespace": "Microsoft.DataFactory/factories",
+                            "operator": "GreaterThan",
+                            "threshold": 0,
+                            "timeAggregation": "Total",
+                            "criterionType": "StaticThresholdCriterion",
+                            "skipMetricValidation": false
+                        }
+                    ]
+                },
+                "autoMitigate": true,
+                "actions": [
+                    {
+                        "actionGroupId": "[resourceId('microsoft.insights/actionGroups', variables('actionGroupName'))]",
+                        "webHookProperties": {}
+                    }
+                ]
+            }
+        }
+
+    ],
+    "outputs": {
+        "actionGroupId": {
+            "type": "string",
+            "value": "[resourceId('microsoft.insights/actionGroups', variables('actionGroupName'))]"
+        },
+        "alertRuleId": {
+            "type": "string",
+            "value": "[resourceId('microsoft.insights/metricalerts', variables('alertRuleName'))]"
+        }
+    }
+}
