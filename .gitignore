@@ -46,6 +46,9 @@ logs/
 # Azure
 .azure/
 *.publishsettings
+# ADF linked service files contain real credentials after placeholder replacement
+azure/linked_services/ls_blob_mfanalytics.json
+azure/linked_services/ls_sql_mfanalytics.json
 
 # Power BI
 *.pbix.bak
