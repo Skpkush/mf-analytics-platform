@@ -1,0 +1,241 @@
+{
+    "name": "pl_transform_facts",
+    "properties": {
+        "description": "Daily orchestrator pipeline. Runs every morning at 6 AM IST via tr_daily_6am_ist.\n\nFlow:\n  1. [Parallel] Validate that all 3 source blobs exist in processed/ container.\n     If any blob is absent after 10 minutes → pipeline fails → alert fires.\n  2. [Sequential ForEach] Load 5 dimension tables via pl_raw_to_sql.\n     Order matters: AMC/Category must exist before Fund (FK constraint).\n  3. [Sequential ForEach] Load 3 fact table slices via pl_raw_to_sql.\n     Fact_SIP and Fact_Returns are computed by fn_compute_daily_metrics (Day 11).\n\nBlob filename convention: <prefix>_<yyyyMMdd>.parquet\n  e.g. nav_amfi_clean_20260531.parquet\n  Date is derived from p_run_date → formatDateTime(..., 'yyyyMMdd').",
+        "activities": [
+
+            {
+                "name": "act_check_amfi_blob",
+                "description": "Verify nav_amfi_clean_<date>.parquet exists before attempting any load. Polls every 30s for up to 10 minutes.",
+                "type": "Validation",
+                "dependsOn": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_blob_parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_blob_path": {
+                                "value": "@concat('nav_amfi_clean_', formatDateTime(pipeline().parameters.p_run_date, 'yyyyMMdd'), '.parquet')",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "timeout": "0.00:10:00",
+                    "sleep": 30,
+                    "minimumSize": 1024
+                }
+            },
+
+            {
+                "name": "act_check_yahoo_blob",
+                "description": "Verify nav_yahoo_clean_<date>.parquet exists. Runs in parallel with AMFI and transactions checks.",
+                "type": "Validation",
+                "dependsOn": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_blob_parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_blob_path": {
+                                "value": "@concat('nav_yahoo_clean_', formatDateTime(pipeline().parameters.p_run_date, 'yyyyMMdd'), '.parquet')",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "timeout": "0.00:10:00",
+                    "sleep": 30,
+                    "minimumSize": 1024
+                }
+            },
+
+            {
+                "name": "act_check_txn_blob",
+                "description": "Verify transactions_clean_<date>.parquet exists. Runs in parallel with AMFI and Yahoo checks.",
+                "type": "Validation",
+                "dependsOn": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_blob_parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_blob_path": {
+                                "value": "@concat('transactions_clean_', formatDateTime(pipeline().parameters.p_run_date, 'yyyyMMdd'), '.parquet')",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "timeout": "0.00:10:00",
+                    "sleep": 30,
+                    "minimumSize": 1024
+                }
+            },
+
+            {
+                "name": "act_foreach_dims",
+                "description": "Load all 5 dimension tables in FK-safe order. Sequential (isSequential:true) so AMC and Category exist before Fund tries to insert rows with FK references.",
+                "type": "ForEach",
+                "dependsOn": [
+                    { "activity": "act_check_amfi_blob", "dependencyConditions": ["Succeeded"] },
+                    { "activity": "act_check_yahoo_blob", "dependencyConditions": ["Succeeded"] },
+                    { "activity": "act_check_txn_blob",  "dependencyConditions": ["Succeeded"] }
+                ],
+                "typeProperties": {
+                    "isSequential": true,
+                    "items": {
+                        "value": "@variables('v_dim_table_config')",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "act_load_dim_table",
+                            "description": "Execute pl_raw_to_sql for one dimension table. Passes table name, blob path (built from run date), and optional pre-copy SQL.",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false,
+                                "secureOutput": false
+                            },
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "pl_raw_to_sql",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "p_table_name": {
+                                        "value": "@item().table",
+                                        "type": "Expression"
+                                    },
+                                    "p_blob_path": {
+                                        "value": "@concat(item().prefix, '_', formatDateTime(pipeline().parameters.p_run_date, 'yyyyMMdd'), '.parquet')",
+                                        "type": "Expression"
+                                    },
+                                    "p_pre_copy_script": {
+                                        "value": "@item().pre_script",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+
+            {
+                "name": "act_foreach_facts",
+                "description": "Load 3 fact table slices after all dimension tables are ready. Sequential to avoid FK violations. Note: Fact_SIP and Fact_Returns are computed by Azure Function (Day 11), not copied from parquet.",
+                "type": "ForEach",
+                "dependsOn": [
+                    { "activity": "act_foreach_dims", "dependencyConditions": ["Succeeded"] }
+                ],
+                "typeProperties": {
+                    "isSequential": true,
+                    "items": {
+                        "value": "@variables('v_fact_table_config')",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "act_load_fact_table",
+                            "description": "Execute pl_raw_to_sql for one fact table slice.",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false,
+                                "secureOutput": false
+                            },
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "pl_raw_to_sql",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "p_table_name": {
+                                        "value": "@item().table",
+                                        "type": "Expression"
+                                    },
+                                    "p_blob_path": {
+                                        "value": "@concat(item().prefix, '_', formatDateTime(pipeline().parameters.p_run_date, 'yyyyMMdd'), '.parquet')",
+                                        "type": "Expression"
+                                    },
+                                    "p_pre_copy_script": {
+                                        "value": "@item().pre_script",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+
+        ],
+        "parameters": {
+            "p_run_date": {
+                "type": "string",
+                "defaultValue": "2026-05-31T00:30:00Z",
+                "description": "ISO 8601 datetime of the run. Schedule trigger injects @trigger().scheduledTime. formatDateTime extracts yyyyMMdd for blob filename."
+            }
+        },
+        "variables": {
+            "v_dim_table_config": {
+                "type": "Array",
+                "defaultValue": [
+                    {
+                        "table": "Dim_Date",
+                        "prefix": "nav_amfi_clean",
+                        "pre_script": ""
+                    },
+                    {
+                        "table": "Dim_AMC",
+                        "prefix": "nav_amfi_clean",
+                        "pre_script": ""
+                    },
+                    {
+                        "table": "Dim_Category",
+                        "prefix": "nav_amfi_clean",
+                        "pre_script": ""
+                    },
+                    {
+                        "table": "Dim_Fund",
+                        "prefix": "nav_amfi_clean",
+                        "pre_script": ""
+                    },
+                    {
+                        "table": "Dim_Investor",
+                        "prefix": "transactions_clean",
+                        "pre_script": ""
+                    }
+                ]
+            },
+            "v_fact_table_config": {
+                "type": "Array",
+                "defaultValue": [
+                    {
+                        "table": "Fact_NAV",
+                        "prefix": "nav_yahoo_clean",
+                        "pre_script": ""
+                    },
+                    {
+                        "table": "Fact_NAV",
+                        "prefix": "nav_amfi_clean",
+                        "pre_script": ""
+                    },
+                    {
+                        "table": "Fact_Transactions",
+                        "prefix": "transactions_clean",
+                        "pre_script": ""
+                    }
+                ]
+            }
+        },
+        "annotations": [
+            "mf-analytics",
+            "day10",
+            "orchestrator",
+            "daily-load"
+        ],
+        "lastPublishTime": "2026-05-30T00:00:00Z"
+    }
+}
