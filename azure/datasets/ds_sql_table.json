@@ -1,0 +1,29 @@
+{
+    "name": "ds_sql_table",
+    "properties": {
+        "description": "Parameterized sink dataset. Points to any dbo table in Azure SQL DB. Pass p_table_name (e.g. 'Fact_NAV') at runtime.",
+        "linkedServiceName": {
+            "referenceName": "ls_sql_mfanalytics",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "p_table_name": {
+                "type": "string",
+                "defaultValue": "Fact_NAV"
+            }
+        },
+        "type": "AzureSqlTable",
+        "typeProperties": {
+            "schema": "dbo",
+            "table": {
+                "value": "@dataset().p_table_name",
+                "type": "Expression"
+            }
+        },
+        "annotations": [
+            "mf-analytics",
+            "sink",
+            "azure-sql"
+        ]
+    }
+}

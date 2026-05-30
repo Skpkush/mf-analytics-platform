@@ -1,0 +1,17 @@
+{
+    "name": "ls_blob_mfanalytics",
+    "properties": {
+        "description": "Azure Blob Storage account for MF Analytics raw and processed data.",
+        "type": "AzureBlobStorage",
+        "typeProperties": {
+            "connectionString": {
+                "type": "SecureString",
+                "value": "DefaultEndpointsProtocol=https;AccountName=mfanalyticsstorage29;AccountKey=<AZURE_STORAGE_KEY>;EndpointSuffix=core.windows.net"
+            }
+        },
+        "annotations": [
+            "mf-analytics",
+            "blob-storage"
+        ]
+    }
+}

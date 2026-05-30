@@ -1,0 +1,130 @@
+{
+    "name": "pl_raw_to_sql",
+    "properties": {
+        "description": "Copies one processed Parquet file from Blob Storage into an Azure SQL table.\n\nParameterized: same pipeline handles every table — Dim or Fact.\nCalled directly for one-off loads, or looped from pl_transform_facts (Day 10).\n\nWrite behaviour: INSERT. For re-loads, set p_pre_copy_script to\n  'DELETE FROM dbo.<table> WHERE date_key = <key>'\nbefore triggering, or TRUNCATE TABLE for full reloads.\n\nSample trigger payload:\n{\n  \"p_table_name\":       \"Fact_NAV\",\n  \"p_blob_path\":        \"nav_yahoo_clean_20260530.parquet\",\n  \"p_pre_copy_script\":  \"\"\n}",
+        "activities": [
+            {
+                "name": "act_copy_blob_to_sql",
+                "description": "Bulk-copy one Parquet file from processed/ container to the target Azure SQL table.",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 60,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "ParquetSource",
+                        "storeSettings": {
+                            "type": "AzureBlobStorageReadSettings",
+                            "recursive": false,
+                            "enablePartitionDiscovery": false
+                        },
+                        "formatSettings": {
+                            "type": "ParquetReadSettings"
+                        }
+                    },
+                    "sink": {
+                        "type": "AzureSqlSink",
+                        "preCopyScript": {
+                            "value": "@if(empty(pipeline().parameters.p_pre_copy_script), null, pipeline().parameters.p_pre_copy_script)",
+                            "type": "Expression"
+                        },
+                        "writeBehavior": "insert",
+                        "sqlWriterUseTableLock": true,
+                        "disableMetricsCollection": false
+                    },
+                    "enableStaging": false,
+                    "parallelCopies": 4,
+                    "dataIntegrationUnits": 4,
+                    "enableSkipIncompatibleRow": false,
+                    "translator": {
+                        "type": "TabularTranslator",
+                        "typeConversion": true,
+                        "typeConversionSettings": {
+                            "allowDataTruncation": false,
+                            "treatBooleanAsNumber": false
+                        }
+                    }
+                },
+                "inputs": [
+                    {
+                        "referenceName": "ds_blob_parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_blob_path": {
+                                "value": "@pipeline().parameters.p_blob_path",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "ds_sql_table",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "p_table_name": {
+                                "value": "@pipeline().parameters.p_table_name",
+                                "type": "Expression"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "act_log_run_metadata",
+                "description": "Captures copy metrics (rows read/written, duration) into pipeline variables for downstream logging. Runs after the copy activity succeeds.",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "act_copy_blob_to_sql",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "variableName": "v_rows_written",
+                    "value": {
+                        "value": "@string(activity('act_copy_blob_to_sql').output.rowsCopied)",
+                        "type": "Expression"
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "p_table_name": {
+                "type": "string",
+                "defaultValue": "Fact_NAV",
+                "description": "Target dbo table name (e.g. Fact_NAV, Dim_AMC)"
+            },
+            "p_blob_path": {
+                "type": "string",
+                "defaultValue": "nav_yahoo_clean_20260529.parquet",
+                "description": "Filename in the 'processed' Blob container (e.g. nav_yahoo_clean_20260530.parquet)"
+            },
+            "p_pre_copy_script": {
+                "type": "string",
+                "defaultValue": "",
+                "description": "Optional T-SQL run before copy (e.g. DELETE or TRUNCATE). Leave empty for append-only loads."
+            }
+        },
+        "variables": {
+            "v_rows_written": {
+                "type": "String",
+                "defaultValue": "0"
+            }
+        },
+        "annotations": [
+            "mf-analytics",
+            "day9",
+            "blob-to-sql",
+            "parameterized"
+        ],
+        "lastPublishTime": "2026-05-30T00:00:00Z"
+    }
+}
