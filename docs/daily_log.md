@@ -272,3 +272,43 @@
 - Add daily schedule trigger (6 AM IST)
 - Add monitoring + email alert on pipeline failure
 - Commit: `feat: ADF transformation pipeline`
+
+---
+
+## Day 10 — 2026-05-30
+
+**Completed:**
+- Built `azure/pipelines/pl_transform_facts.json` — orchestrator pipeline for daily full load:
+  - 3 parallel Validation activities (AMFI, Yahoo, transactions blobs) — poll every 30s, 10-min timeout; pipeline fails gracefully if source blob is absent instead of cryptic copy error
+  - `act_foreach_dims`: sequential ForEach over 5 dimension tables in FK-safe order (Date → AMC → Category → Fund → Investor); calls `pl_raw_to_sql` via ExecutePipeline
+  - `act_foreach_facts`: sequential ForEach over 3 fact slices (Fact_NAV×2 from Yahoo+AMFI, Fact_Transactions); depends on dims succeeding
+  - Blob filename constructed dynamically: `@concat(item().prefix, '_', formatDateTime(pipeline().parameters.p_run_date, 'yyyyMMdd'), '.parquet')`
+  - `pl_raw_to_sql` (Day 9) reused unchanged — clean separation of concerns
+- Built `azure/triggers/tr_daily_6am_ist.json` — ScheduleTrigger:
+  - Fires daily at 00:30 UTC = 6:00 AM IST
+  - Injects `@trigger().scheduledTime` as `p_run_date` → pipeline builds correct blob filename
+  - 10-min Validation grace window covers blobs deposited up to 6:10 AM IST
+- Built `azure/alerts/alert_adf_failure.json` — ARM template:
+  - Action Group: email to sumitkprajapat@gmail.com with Common Alert Schema
+  - Metric Alert: `PipelineFailedRuns > 0`, 5-min window, 1-min evaluation frequency, severity 2
+  - Deploy via Azure Portal → "Deploy a custom template"
+- ADF demo run: `pl_raw_to_sql` triggered manually on Day 9, Copy Activity **SUCCEEDED** ✓
+
+**ADF pipeline state:**
+- `pl_raw_to_sql` — live, tested Day 9 ✓
+- `pl_transform_facts` — JSON complete, ready to import into ADF Studio
+- `tr_daily_6am_ist` — JSON complete, activate after importing pipeline
+- `alert_adf_failure.json` — ARM template ready to deploy
+
+**Note:** Fact_SIP and Fact_Returns are NOT in the ForEach (they require Python computation, not direct Blob→SQL copy). These are handled by Azure Function `fn_compute_daily_metrics` on Day 11.
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** None
+
+**Tomorrow (Day 11):**
+- Build Python Azure Function `fn_compute_daily_metrics`
+- Trigger: HTTP + scheduled (daily 7 AM IST)
+- Computes Fact_SIP aggregation + Fact_Returns metrics (Sharpe, Alpha, Beta)
+- Deploy to Azure Function App
+- Commit: `feat: Azure Function for daily metrics`
