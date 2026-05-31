@@ -275,6 +275,43 @@
 
 ---
 
+## Day 11 — 2026-05-31
+
+**Completed:**
+- Fixed Power BI "Total AUM Formatted" measure — root cause: `SUM(Fact_NAV[nav])` was summing 32,607 NAV price rows (meaningless). Correct AUM = `current_units_held` (Fact_SIP latest month) × latest `nav` (Fact_NAV)
+  - Created `scripts/sql/views/vw_aum_summary.sql` — mirrors `sp_compute_aum` logic as a plain view (no date param); verified on local PostgreSQL: 30 funds, **₹7.42 Cr** total AUM
+  - Correct DAX: `"₹" & FORMAT(SUM(vw_aum_summary[aum_inr]) / 10000000, "0.00") & " Cr"` — import view in Power BI then use this measure
+  - Pure-DAX alternative (no new table) also documented using `SUMX(VALUES(Dim_Fund[fund_key]), ...)`
+  - Azure SQL push script: `scripts/sql/push_aum_view_to_azure.py` (Azure SQL timed out — likely IP firewall; run once firewall allows)
+- Built Azure Function `fn_compute_daily_metrics` (v2 Python programming model):
+  - `azure/functions/fn_compute_daily_metrics/compute.py` — self-contained metric computation (no project imports); all 4 metric functions + Fact_SIP refresh + Fact_Returns refresh
+  - `azure/functions/fn_compute_daily_metrics/function_app.py` — Timer trigger (01:30 UTC = 7 AM IST) + HTTP trigger (POST /api/compute-metrics, returns JSON summary)
+  - `azure/functions/fn_compute_daily_metrics/host.json` — 10-min timeout, 2-retry with 30s delay
+  - `azure/functions/fn_compute_daily_metrics/requirements.txt` — 6 deps (azure-functions, numpy, pandas, pyodbc, python-dotenv, scipy)
+  - `azure/functions/fn_compute_daily_metrics/test_local.py` — local smoke test against PostgreSQL (no Azure required)
+  - All 4 smoke tests PASSED: NIFTYBEES cagr_5y=10.19%, max_drawdown≤0, beta computed, GOLDBEES sharpe=1.55 > 0
+- Fact_SIP refresh logic: loads Fact_Transactions from Azure SQL → derives monthly aggregates + cumulative_invested + current_units_held → TRUNCATE + re-INSERT (idempotent)
+- Fact_Returns refresh: DELETE + 4-pass recompute (returns/CAGR → risk → market → risk-adjusted) — identical algorithm to `run_azure_etl.py`
+
+**Azure Function state:**
+- `fn_compute_daily_metrics` — code complete, smoke-tested locally ✓
+- Deployment: `az functionapp deployment source config-zip` or Azure Portal ZIP deploy
+- Azure SQL connection: `AZURE_SQL_CONNECTION_STRING` env var (Key Vault ref) or 5 individual vars
+
+**Applications submitted:** 0/10 — pending
+
+**Blockers:** Azure SQL firewall timed out from current IP (need to whitelist IP in Azure Portal before testing against Azure SQL)
+
+**Tomorrow (Day 12):**
+- Connect Power BI Desktop to Azure SQL DB
+- Build data model (relationships, hierarchies)
+- Page 1: Executive Overview (AUM from vw_aum_summary, top funds, KPIs, market summary)
+- Page 2: Fund Performance (CAGR trends, rolling returns, benchmark comparison)
+- 20+ DAX measures documented
+- Commit: `feat: Power BI pages 1-2 + DAX measures`
+
+---
+
 ## Day 10 — 2026-05-30
 
 **Completed:**

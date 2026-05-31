@@ -1,5 +1,6 @@
 # Environment
 .env
+azure/functions/*/local.settings.json
 .venv
 venv/
 env/

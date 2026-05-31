@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AZURE_SQL_DRIVER": "{ODBC Driver 18 for SQL Server}",
+    "AZURE_SQL_SERVER": "mf-analytics-server.database.windows.net",
+    "AZURE_SQL_DATABASE": "mf-analytics-db",
+    "AZURE_SQL_USER": "sqladmin",
+    "AZURE_SQL_PASSWORD": "<your-password>"
+  }
+}
