@@ -187,6 +187,67 @@ def fetch_amfi_current(max_retries: int = 3) -> Optional[pd.DataFrame]:
     return None
 
 
+def parse_amfi_historical_text(raw_text: str) -> pd.DataFrame:
+    """
+    Parse AMFI historical NAV response into a clean DataFrame.
+
+    The historical endpoint returns a DIFFERENT column order to the
+    current-NAV file:
+        code ; name ; isin_payout ; isin_reinv ; nav ; repurchase ; sale ; date
+
+    Compared with the current-NAV file:
+        code ; isin_payout ; isin_reinv ; name ; nav ; date
+
+    Args:
+        raw_text: Raw response text from DownloadNAVHistoryReport_Po.aspx
+
+    Returns:
+        DataFrame with columns matching parse_amfi_text output schema.
+    """
+    records = []
+    current_scheme_type = ""
+
+    for raw_line in raw_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("Scheme Code"):
+            continue
+        # Section header — no semicolons
+        if ";" not in line:
+            current_scheme_type = line
+            continue
+
+        parts = line.split(";")
+        if len(parts) < 8:
+            continue
+
+        try:
+            record = {
+                "scheme_code":           parts[0].strip(),
+                "isin_div_payout":       parts[2].strip(),
+                "isin_div_reinvestment": parts[3].strip(),
+                "scheme_name":           parts[1].strip(),
+                "nav":                   parts[4].strip(),
+                "date":                  parts[7].strip(),   # date is the 8th field
+                "amc":                   "",
+                "scheme_type":           current_scheme_type,
+            }
+            records.append(record)
+        except Exception as exc:
+            logger.debug(f"Skipping malformed historical line: {line[:80]} | {exc}")
+
+    df = pd.DataFrame(records)
+    if df.empty:
+        return df
+
+    df["nav"]  = pd.to_numeric(df["nav"], errors="coerce")
+    df["date"] = pd.to_datetime(df["date"], format="%d-%b-%Y", errors="coerce")
+    df = df[df["nav"].notna() & df["date"].notna()].copy()
+    df["fetch_timestamp"] = datetime.now()
+    return df.reset_index(drop=True)
+
+
 def fetch_amfi_historical(
     start_date: datetime,
     end_date: datetime,
@@ -195,16 +256,17 @@ def fetch_amfi_historical(
     """
     Fetch historical NAVs from AMFI for a date range.
 
-    AMFI's historical endpoint accepts a date range but is unreliable
-    for ranges > 90 days. We chunk requests.
+    The historical endpoint (DownloadNAVHistoryReport_Po.aspx) uses a
+    different column layout to the current-NAV file; parse_amfi_historical_text
+    handles it correctly.
 
     Args:
         start_date: Range start
         end_date: Range end
-        chunk_days: Days per chunk request
+        chunk_days: Days per chunk request (AMFI unreliable > 90 days)
 
     Returns:
-        Combined historical DataFrame
+        Combined historical DataFrame, or None if all chunks failed.
     """
     logger.info(f"Fetching historical NAVs: {start_date.date()} to {end_date.date()}")
     logger.info(f"  Chunking by {chunk_days} days")
@@ -214,11 +276,11 @@ def fetch_amfi_historical(
 
     while chunk_start < end_date:
         chunk_end = min(chunk_start + timedelta(days=chunk_days), end_date)
-        logger.info(f"  Chunk: {chunk_start.date()} → {chunk_end.date()}")
+        logger.info(f"  Chunk: {chunk_start.date()} -> {chunk_end.date()}")
 
         params = {
             "frmdt": chunk_start.strftime("%d-%b-%Y"),
-            "todt": chunk_end.strftime("%d-%b-%Y"),
+            "todt":  chunk_end.strftime("%d-%b-%Y"),
         }
 
         try:
@@ -230,18 +292,18 @@ def fetch_amfi_historical(
             )
             response.raise_for_status()
 
-            df_chunk = parse_amfi_text(response.text)
+            df_chunk = parse_amfi_historical_text(response.text)
 
             if not df_chunk.empty:
                 all_chunks.append(df_chunk)
-                logger.info(f"    ✓ {len(df_chunk):,} rows")
+                logger.info(f"    {len(df_chunk):,} rows")
             else:
                 logger.warning(f"    Empty chunk")
 
-            time.sleep(2)  # Be polite
+            time.sleep(2)
 
-        except Exception as e:
-            logger.error(f"    Chunk failed: {e}")
+        except Exception as exc:
+            logger.error(f"    Chunk failed: {exc}")
 
         chunk_start = chunk_end + timedelta(days=1)
 
@@ -251,7 +313,7 @@ def fetch_amfi_historical(
 
     combined = pd.concat(all_chunks, ignore_index=True)
     combined = combined.drop_duplicates(subset=["scheme_code", "date"], keep="last")
-    logger.info(f"  ✓ Total historical rows: {len(combined):,}")
+    logger.info(f"  Total historical rows: {len(combined):,}")
     return combined
 
 
