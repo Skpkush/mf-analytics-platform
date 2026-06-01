@@ -32,7 +32,7 @@ CONN_STR = (
     "Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
 )
 
-VIEWS = ["vw_fund_performance", "vw_risk_summary"]
+VIEWS = ["vw_fund_performance", "vw_risk_summary", "vw_aum_summary"]
 
 VERIFY_SQL = """
     SELECT COLUMN_NAME

@@ -15,7 +15,7 @@
 --   DAX: "₹" & FORMAT(SUM(vw_aum_summary[aum_inr]) / 10000000, "0.00") & " Cr"
 -- ============================================================
 
-CREATE OR REPLACE VIEW dbo.vw_aum_summary AS
+CREATE OR ALTER VIEW dbo.vw_aum_summary AS
 WITH latest_sip AS (
     -- Most recent Fact_SIP row per investor-fund.
     -- current_units_held is cumulative net units (purchased minus redeemed),
