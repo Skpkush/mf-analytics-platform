@@ -1,6 +1,8 @@
--- vw_fund_performance  (v4 - Azure SQL T-SQL syntax)
+-- vw_fund_performance  (v5 - exclude IDCW plans)
 -- asset_class_label is intentionally omitted: it is a DAX calculated column
 -- in the Power BI model. Returning it from SQL causes a duplicate-name conflict.
+-- IDCW plans excluded: dividend payouts reset NAV, making CAGR meaningless for
+-- performance comparison. Growth/Bonus/benchmarks are the industry standard.
 CREATE OR ALTER VIEW dbo.vw_fund_performance AS
 WITH returns_data AS (
     SELECT fr.fund_key, fr.date_key, dd.full_date AS as_of_date,
@@ -44,4 +46,7 @@ SELECT
 FROM returns_data rd
 JOIN      dbo.Dim_Fund     df ON df.fund_key     = rd.fund_key
 LEFT JOIN dbo.Dim_AMC      da ON da.amc_key      = df.amc_key
-LEFT JOIN dbo.Dim_Category dc ON dc.category_key = df.category_key;
+LEFT JOIN dbo.Dim_Category dc ON dc.category_key = df.category_key
+WHERE df.is_benchmark = 1
+   OR df.option_type IN ('Growth', 'Bonus')
+   OR df.option_type IS NULL;
