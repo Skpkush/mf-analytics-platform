@@ -1,0 +1,35 @@
+{
+  "name": "MF Analytics Professional",
+  "dataColors": [
+    "#0078D4",
+    "#00B294",
+    "#FFB900",
+    "#E74856",
+    "#8764B8",
+    "#00BCF2",
+    "#FF8C00",
+    "#00CC6A"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#252423",
+  "tableAccent": "#0078D4",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "fontFamily": [{ "value": "Segoe UI" }],
+        "fontSize": [{ "value": 11 }]
+      }
+    },
+    "card": {
+      "*": {
+        "calloutValue": [{ "fontSize": { "value": 28 }, "fontFamily": { "value": "Segoe UI Semibold" }, "color": { "solid": { "color": "#252423" } } }],
+        "categoryLabel": [{ "fontSize": { "value": 11 }, "color": { "solid": { "color": "#605E5C" } }, "fontFamily": { "value": "Segoe UI" } }]
+      }
+    },
+    "clusteredBarChart": {
+      "*": {
+        "dataPoint": [{ "defaultColor": { "solid": { "color": "#0078D4" } } }]
+      }
+    }
+  }
+}
