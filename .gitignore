@@ -54,6 +54,9 @@ azure/linked_services/ls_sql_mfanalytics.json
 # Power BI
 *.pbix.bak
 *.tmp
+# PBIX repack intermediates (staging dirs + per-page output files)
+powerbi/_*_stage/
+powerbi/mf_analytics_dashboard_p*.pbix
 
 # OS
 .DS_Store
