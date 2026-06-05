@@ -424,17 +424,44 @@ def _build_amfi_fund_records(
     return records
 
 
-def _build_yahoo_fund_records(yahoo_df: pd.DataFrame) -> list[tuple]:
-    """Build Dim_Fund insert tuples for Yahoo ETF and benchmark tickers."""
+# ETF sub_category classification (Yahoo ETFs carry no AMFI category string).
+# Maps an ETF name to the Dim_Category.sub_category it belongs to, so the
+# fund can be linked to a category_key. Benchmarks (indices) are excluded —
+# they legitimately have no category. Order matters: gold/liquid before the
+# generic 'Other  ETFs' bucket (note the double space — matches AMFI raw).
+def _classify_etf_subcategory(name: str) -> str:
+    """Return the Dim_Category sub_category an ETF maps to."""
+    n = name.lower()
+    if "gold" in n:
+        return "Gold ETF"
+    if "liquid" in n:
+        return "Liquid Fund"
+    return "Other  ETFs"
+
+
+def _build_yahoo_fund_records(
+    yahoo_df: pd.DataFrame,
+    subcat_to_key: dict[str, int],
+) -> list[tuple]:
+    """Build Dim_Fund insert tuples for Yahoo ETF and benchmark tickers.
+
+    ETFs are linked to a category_key via name-based classification so the
+    Dim_Category join (and downstream asset_class) resolves. Benchmarks keep
+    category_key = NULL by design.
+    """
     unique = yahoo_df.drop_duplicates(subset=["ticker"])
     records = []
     for row in unique.itertuples(index=False):
         is_benchmark = str(row.source) == "yahoo_benchmark"
+        cat_key = (
+            None if is_benchmark
+            else subcat_to_key.get(_classify_etf_subcategory(str(row.name)))
+        )
         records.append((
             str(row.ticker), str(row.name), str(row.name),
-            None, None,   # plan_type, option_type
-            None, None,   # amc_key, category_key
-            None, None,   # isin_growth, isin_idcw
+            None, None,        # plan_type, option_type
+            None, cat_key,     # amc_key, category_key
+            None, None,        # isin_growth, isin_idcw
             str(row.source), is_benchmark, True, None,
         ))
     return records
@@ -449,8 +476,17 @@ def load_dim_fund(
     cat_map: dict[str, int],
 ) -> dict[str, int]:
     """Upsert all funds/benchmarks. Returns {scheme_code: fund_key} map."""
+    # Reverse cat_map (raw_category -> key) into sub_category -> key so ETFs
+    # can be classified by sub_category. First key wins on duplicate
+    # sub_categories; the ETF targets (Gold ETF / Liquid Fund / Other  ETFs)
+    # are unique, so collisions are irrelevant here.
+    subcat_to_key: dict[str, int] = {}
+    for raw, key in cat_map.items():
+        _, _, sub_cat = parse_category(raw)
+        subcat_to_key.setdefault(sub_cat, key)
+
     amfi_records = _build_amfi_fund_records(amfi_df, raw_amfi_df, amc_map, cat_map)
-    yahoo_records = _build_yahoo_fund_records(yahoo_df)
+    yahoo_records = _build_yahoo_fund_records(yahoo_df, subcat_to_key)
     all_records = amfi_records + yahoo_records
 
     with conn.cursor() as cur:
