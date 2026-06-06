@@ -3,7 +3,30 @@
 > Production-style, enterprise-grade Mutual Fund Analytics Platform demonstrating end-to-end Data Engineering, Advanced Analytics, Cloud Architecture, and Executive BI Reporting.
 
 **Built by:** Sumit Kumar Prajapat | [GitHub: Skpkush](https://github.com/Skpkush)
-**Status:** 🚧 In Active Development (Week 1 of 4)
+**Status:** ✅ Complete — End-to-end pipeline live (ingestion → Azure ADF → Star Schema → Power BI)
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![Pandas](https://img.shields.io/badge/pandas-2.x-150458?logo=pandas&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)
+![Azure](https://img.shields.io/badge/Azure-SQL%20%7C%20ADF%20%7C%20Blob-0078D4?logo=microsoftazure&logoColor=white)
+![Power BI](https://img.shields.io/badge/Power%20BI-Desktop-F2C811?logo=powerbi&logoColor=black)
+![Prophet](https://img.shields.io/badge/Prophet-NAV%20Forecasting-005571)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+---
+
+## 📊 Key Metrics
+
+| Metric | Value |
+|---|---|
+| **NAV rows processed** | 9M+ |
+| **Funds with computed metrics** | 10,571 |
+| **AMCs covered** | 51 |
+| **Power BI dashboard pages** | 4 |
+| **Cloud ETL** | Azure Data Factory pipeline (✅ Succeeded) |
+| **DAX measures authored** | 25+ |
+| **Data model** | Star schema — 5 dimension + 4 fact tables |
 
 ---
 
@@ -15,21 +38,22 @@ This platform delivers exactly that.
 
 ---
 
-## 🏗️ Architecture (High-Level)
+## 🏗️ Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │  Data Sources   │───▶│   Azure Blob    │───▶│  Azure Data     │
 │  Yahoo Finance  │    │   (Raw Layer)   │    │   Factory       │
-│  AMFI India     │    └─────────────────┘    └─────────────────┘
-│  Kaggle         │                                     │
-└─────────────────┘                                     ▼
-                                              ┌─────────────────┐
-┌─────────────────┐    ┌─────────────────┐    │  Azure SQL DB   │
-│  Streamlit App  │◀───│  Power BI       │◀───│  Star Schema    │
-│  (Hostinger VPS)│    │  Dashboard      │    │  Fact + Dim     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        ▲                                              │
+│  AMFI India     │    └─────────────────┘    │  (✅ Succeeded) │
+│  Kaggle         │                           └─────────────────┘
+└─────────────────┘                                     │
+                                                        ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Streamlit App  │◀───│  Power BI       │◀───│  Azure SQL DB   │
+│  (Hostinger VPS)│    │  4-Page         │    │  Star Schema    │
+└─────────────────┘    │  Dashboard      │    │  5 Dim + 4 Fact │
+        ▲              └─────────────────┘    └─────────────────┘
+        │                                              │
         │                                              ▼
         │                                     ┌─────────────────┐
         └─────────────────────────────────────│  Python ML      │
@@ -38,7 +62,14 @@ This platform delivers exactly that.
                                               └─────────────────┘
 ```
 
+**Data flow:** Raw multi-source data lands in Azure Blob → Azure Data Factory orchestrates ingestion → transformation/cleaning in Python → load into a **star schema** (5 dimension + 4 fact tables) on Azure SQL Database (PostgreSQL locally) → 25+ DAX measures power a 4-page Power BI dashboard → Prophet forecasts NAV trajectories → Streamlit surfaces client-facing analytics.
+
 Full diagram: [`docs/architecture/architecture.md`](docs/architecture/architecture.md)
+
+### Star Schema (5 Dim + 4 Fact)
+
+- **Dimensions:** `Dim_Fund`, `Dim_AMC`, `Dim_Date`, `Dim_Investor`, `Dim_Category`
+- **Facts:** `Fact_NAV`, `Fact_Performance`, `Fact_Risk`, `Fact_Investor_Flows`
 
 ---
 
@@ -47,11 +78,11 @@ Full diagram: [`docs/architecture/architecture.md`](docs/architecture/architectu
 | Layer | Technology |
 |---|---|
 | **Cloud** | Azure (Blob Storage, SQL Database, Data Factory, Functions, Key Vault) |
-| **Database** | Azure SQL Database (primary), PostgreSQL (fallback) |
-| **ETL** | Azure Data Factory + Python (pandas, sqlalchemy) |
+| **Database** | Azure SQL Database (cloud) + PostgreSQL 15 (local/fallback) |
+| **ETL** | Azure Data Factory + Python (pandas 2.x, sqlalchemy) |
 | **Analytics** | Python (numpy, scipy, statsmodels) |
 | **ML** | Prophet (NAV forecasting) |
-| **BI** | Power BI Desktop + Power BI Service |
+| **BI** | Power BI Desktop — 4 pages, 25+ DAX measures |
 | **App** | Streamlit (deployed on Hostinger VPS) |
 | **Orchestration** | ADF pipelines + Azure Functions |
 | **Version Control** | Git + GitHub |
@@ -64,6 +95,25 @@ Full diagram: [`docs/architecture/architecture.md`](docs/architecture/architectu
 2. **Fund Performance Analytics** — CAGR, rolling returns, benchmark comparison
 3. **Investor Analytics** — SIP trends, segmentation, retention
 4. **Risk & Volatility** — Sharpe heatmaps, drawdown, risk-return scatter
+
+---
+
+## 🖼️ Dashboard Screenshots
+
+| View | Screenshot |
+|---|---|
+| Page 1 — Executive Overview | `docs/screenshots/page1_executive_overview.png` |
+| Page 2 — Fund Performance | `docs/screenshots/page2_fund_performance.png` |
+| Page 3 — Investor Analytics | `docs/screenshots/page3_investor_analytics.png` |
+| Page 4 — Risk & Volatility | `docs/screenshots/page4_risk_volatility.png` |
+| Azure ADF Pipeline (Succeeded) | `docs/screenshots/Pipeline success.png` |
+
+<!--
+Replace the paths above with embedded images once captured, e.g.:
+![Executive Overview](docs/screenshots/page1_executive_overview.png)
+-->
+
+![Azure ADF Pipeline — Succeeded](docs/screenshots/Pipeline%20success.png)
 
 ---
 
@@ -85,7 +135,9 @@ Full diagram: [`docs/architecture/architecture.md`](docs/architecture/architectu
 
 ---
 
-## 🚀 Quick Start
+## ▶️ How to Run
+
+### 1. Setup
 
 ```bash
 # Clone repo
@@ -94,19 +146,46 @@ cd mf-analytics-platform
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Configure environment variables
-cp .env.example .env
-# Edit .env with your Azure / database credentials
+cp .env.example .env            # Windows: copy .env.example .env
+# Edit .env with your Azure / PostgreSQL credentials
+```
 
-# Run data ingestion (Day 1)
+### 2. Ingest data
+
+```bash
 python scripts/ingestion/fetch_yahoo_finance.py
 python scripts/ingestion/fetch_amfi_nav.py
 ```
+
+### 3. Transform & load (build the star schema)
+
+```bash
+# Clean and validate NAV history
+python scripts/transformation/clean_nav.py
+
+# Build dimensions + facts and load into the database
+python scripts/etl/load_dimensions.py
+```
+
+### 4. Compute analytics + forecasts
+
+```bash
+python scripts/analytics/compute_metrics.py
+python scripts/ml/forecast_nav.py
+```
+
+### 5. Explore the dashboard & app
+
+- **Power BI:** open `powerbi/mf_analytics_dashboard_p4.pbix` (apply theme `powerbi/theme_mf_analytics.json`).
+- **Streamlit:** `streamlit run streamlit/app.py` → open `http://localhost:8501`.
+
+> Cloud path: the Azure Data Factory pipeline orchestrates the ingestion → blob → SQL load in the cloud (pipeline run **Succeeded** — see screenshot above).
 
 ---
 
@@ -121,6 +200,7 @@ mf-analytics-platform/
 ├── scripts/
 │   ├── ingestion/        # Data acquisition (Yahoo, AMFI, Kaggle)
 │   ├── transformation/   # Cleaning, validation, feature engineering
+│   ├── etl/              # Dimension/fact build + load
 │   ├── analytics/        # Financial metric calculations
 │   └── ml/               # Prophet forecasting
 ├── sql/
@@ -132,12 +212,12 @@ mf-analytics-platform/
 │   ├── adf_pipelines/    # ADF JSON pipeline definitions
 │   ├── functions/        # Azure Functions code
 │   └── arm_templates/    # Infrastructure as code
-├── powerbi/              # PBIX file + DAX measures documentation
+├── powerbi/              # PBIX file + theme + DAX measures documentation
 ├── streamlit/            # Streamlit client-facing app
 ├── docs/
 │   ├── architecture/     # Architecture diagrams
 │   ├── case_study/       # Final case study PDF
-│   └── screenshots/      # Dashboard screenshots
+│   └── screenshots/      # Dashboard + pipeline screenshots
 ├── notebooks/            # Jupyter notebooks for exploration
 ├── tests/                # Unit tests
 ├── PROJECT_PLAN.md       # Week-by-week execution plan
@@ -148,23 +228,13 @@ mf-analytics-platform/
 
 ---
 
-## 📅 Project Timeline
-
-**Total Duration:** 4 weeks
-**Start:** Week 1, Day 1
-**Target Completion:** 4 weeks from start
-
-See [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the detailed day-by-day plan.
-
----
-
 ## 📄 Documentation
 
 - [Architecture](docs/architecture/architecture.md)
 - [Project Plan](PROJECT_PLAN.md)
-- [Data Dictionary](docs/data_dictionary.md) *(coming Week 2)*
-- [KPI Definitions](docs/kpi_definitions.md) *(coming Week 2)*
-- [Case Study PDF](docs/case_study/) *(coming Week 4)*
+- [Data Dictionary](docs/data_dictionary.md)
+- [KPI Definitions](docs/kpi_definitions.md)
+- [Case Study PDF](docs/case_study/)
 
 ---
 
