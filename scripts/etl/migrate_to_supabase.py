@@ -173,11 +173,26 @@ def create_views(conn: psycopg2.extensions.connection) -> None:
 # ----------------------------------------------------------------
 # Data copy
 # ----------------------------------------------------------------
-def _source_query(table: str, include_amfi_nav: bool) -> str:
+def _columns(conn: psycopg2.extensions.connection, table: str) -> list[str]:
+    """Ordered column names for dbo.<table> from information_schema."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'dbo' AND table_name = %s
+            ORDER BY ordinal_position
+            """,
+            (table,),
+        )
+        return [r[0] for r in cur.fetchall()]
+
+
+def _source_query(table: str, include_amfi_nav: bool, select_clause: str = "*") -> str:
     """Return the SELECT used to read a table from the local DB."""
     if table == "fact_nav" and not include_amfi_nav:
-        return f"SELECT * FROM dbo.fact_nav WHERE {YAHOO_NAV_FILTER}"
-    return f"SELECT * FROM dbo.{table}"
+        return f"SELECT {select_clause} FROM dbo.fact_nav WHERE {YAHOO_NAV_FILTER}"
+    return f"SELECT {select_clause} FROM dbo.{table}"
 
 
 def truncate_targets(conn: psycopg2.extensions.connection) -> None:
@@ -198,14 +213,25 @@ def copy_table(
     """COPY one table local → Supabase via an in-memory text buffer.
 
     Returns the number of rows transferred.
+
+    Columns are intersected target∩source (ordered by target) so the copy is
+    resilient to schema drift — e.g. local Dim_Investor has an extra age_sort
+    column that the DDL (and thus the Supabase table) doesn't.
     """
-    src = _source_query(table, include_amfi_nav)
+    src_cols = set(_columns(local, table))
+    cols = [c for c in _columns(supa, table) if c in src_cols]
+    collist = ", ".join(cols)
+    dropped = src_cols - set(cols)
+    if dropped:
+        logger.warning(f"  {table}: source-only columns not migrated: {sorted(dropped)}")
+
+    src = _source_query(table, include_amfi_nav, collist)
     buf = io.StringIO()
     with local.cursor() as lcur:
         lcur.copy_expert(f"COPY ({src}) TO STDOUT", buf)
     buf.seek(0)
     with supa.cursor() as scur:
-        scur.copy_expert(f"COPY dbo.{table} FROM STDIN", buf)
+        scur.copy_expert(f"COPY dbo.{table} ({collist}) FROM STDIN", buf)
     supa.commit()
     n = buf.getvalue().count("\n")
     logger.info(f"  {table:<20}: {n:>8,} rows copied")
