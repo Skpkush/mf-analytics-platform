@@ -1,14 +1,19 @@
 # ============================================================
-# Deploy the NAV Forecasting app behind the existing Traefik
-# reverse proxy on the Hostinger VPS (srv973497.hstgr.cloud).
+# Deploy the NAV Forecasting app on the Hostinger VPS.
 #
 #   cd mf-analytics-platform
 #   docker compose -f streamlit/docker-compose.yml up -d --build
 #
-# Assumes a Traefik instance already running with an external
-# docker network named "traefik" and an HTTPS entrypoint
-# "websecure" + cert resolver "letsencrypt" (adjust to match
-# your Traefik config). DB credentials come from the repo .env.
+# CURRENT MODE: direct port (quick test, http only).
+# Reachable at:  http://<VPS-IP>:8501
+#           or:  http://srv973497.hstgr.cloud:8501  (hostname resolves)
+# Make sure port 8501 is open in the VPS / Hostinger firewall.
+#
+# DB credentials come from the repo .env (point LOCAL_DB_* at Supabase).
+#
+# To later put this behind Traefik + HTTPS on your own domain, remove
+# the `ports:` block and uncomment the `networks:` + `labels:` blocks
+# (and the bottom `networks:` definition), then set your Host() rule.
 # ============================================================
 services:
   mf-nav-app:
@@ -20,15 +25,18 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env
-    networks:
-      - traefik
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mfnav.rule=Host(`nav.srv973497.hstgr.cloud`)"
-      - "traefik.http.routers.mfnav.entrypoints=websecure"
-      - "traefik.http.routers.mfnav.tls.certresolver=letsencrypt"
-      - "traefik.http.services.mfnav.loadbalancer.server.port=8501"
+    ports:
+      - "8501:8501"
+    # --- Traefik mode (uncomment for your own domain + HTTPS) ---
+    # networks:
+    #   - traefik
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.mfnav.rule=Host(`nav.finonuscapital.com`)"
+    #   - "traefik.http.routers.mfnav.entrypoints=websecure"
+    #   - "traefik.http.routers.mfnav.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.mfnav.loadbalancer.server.port=8501"
 
-networks:
-  traefik:
-    external: true
+# networks:
+#   traefik:
+#     external: true
