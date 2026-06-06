@@ -1,0 +1,11 @@
+# Slim, app-only dependencies for the Streamlit container.
+# (The repo-root requirements.txt is the full project lock; this keeps the
+#  VPS image small — drops yfinance/statsmodels/sklearn/bs4 etc.)
+streamlit==1.58.0
+plotly==6.7.0
+pandas==3.0.3
+numpy==2.4.6
+prophet==1.3.0
+SQLAlchemy==2.0.50
+psycopg2-binary==2.9.12
+python-dotenv==1.2.2

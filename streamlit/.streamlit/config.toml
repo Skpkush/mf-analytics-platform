@@ -1,0 +1,15 @@
+# Navy + white theme for the MF Analytics app.
+[theme]
+primaryColor = "#1B3A6B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F6FA"
+textColor = "#1F2733"
+font = "sans serif"
+
+[server]
+headless = true
+address = "0.0.0.0"
+port = 8501
+
+[browser]
+gatherUsageStats = false

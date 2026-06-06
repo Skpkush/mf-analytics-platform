@@ -13,11 +13,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Install deps first for layer caching.
-COPY requirements.txt ./
+# Install slim app-only deps first for layer caching.
+COPY streamlit/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# App code + the forecasting module it imports.
+# App code (incl. utils/, pages/, .streamlit/) + the forecasting module it imports.
 COPY scripts/ ./scripts/
 COPY streamlit/ ./streamlit/
 
