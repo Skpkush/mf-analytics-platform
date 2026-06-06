@@ -68,8 +68,10 @@ Full diagram: [`docs/architecture/architecture.md`](docs/architecture/architectu
 
 ### Star Schema (5 Dim + 4 Fact)
 
-- **Dimensions:** `Dim_Fund`, `Dim_AMC`, `Dim_Date`, `Dim_Investor`, `Dim_Category`
-- **Facts:** `Fact_NAV`, `Fact_Performance`, `Fact_Risk`, `Fact_Investor_Flows`
+- **Dimensions:** `Dim_Date`, `Dim_AMC`, `Dim_Category`, `Dim_Fund`, `Dim_Investor`
+- **Facts:** `Fact_NAV`, `Fact_Transactions`, `Fact_SIP`, `Fact_Returns`
+
+DDL: [`scripts/sql/ddl/`](scripts/sql/ddl/) · Views: [`scripts/sql/views/`](scripts/sql/views/) · Procs: [`scripts/sql/procs/`](scripts/sql/procs/)
 
 ---
 
@@ -100,19 +102,19 @@ Full diagram: [`docs/architecture/architecture.md`](docs/architecture/architectu
 
 ## 🖼️ Dashboard Screenshots
 
-| View | Screenshot |
-|---|---|
-| Page 1 — Executive Overview | `docs/screenshots/page1_executive_overview.png` |
-| Page 2 — Fund Performance | `docs/screenshots/page2_fund_performance.png` |
-| Page 3 — Investor Analytics | `docs/screenshots/page3_investor_analytics.png` |
-| Page 4 — Risk & Volatility | `docs/screenshots/page4_risk_volatility.png` |
-| Azure ADF Pipeline (Succeeded) | `docs/screenshots/Pipeline success.png` |
+**Page 1 — Executive Overview**
+![Executive Overview](docs/screenshots/page1_executive.png)
 
-<!--
-Replace the paths above with embedded images once captured, e.g.:
-![Executive Overview](docs/screenshots/page1_executive_overview.png)
--->
+**Page 2 — Fund Performance Analytics**
+![Fund Performance](docs/screenshots/page2_performance.png)
 
+**Page 3 — Investor Analytics**
+![Investor Analytics](docs/screenshots/page3_investor.png)
+
+**Page 4 — Risk & Volatility**
+![Risk & Volatility](docs/screenshots/page4_risk.png)
+
+**Azure Data Factory Pipeline — Succeeded**
 ![Azure ADF Pipeline — Succeeded](docs/screenshots/Pipeline%20success.png)
 
 ---
@@ -129,9 +131,9 @@ Replace the paths above with embedded images once captured, e.g.:
 
 ---
 
-## 🤖 ML Module
+## 🤖 ML Module *(roadmap)*
 
-**NAV Forecasting (Prophet)** — Predicts 30/60/90-day NAV trajectories with confidence intervals for selected funds.
+**NAV Forecasting (Prophet)** — Predict 30/60/90-day NAV trajectories with confidence intervals for selected funds. Planned in `scripts/ml/`, surfaced via the Streamlit app (`streamlit/`).
 
 ---
 
@@ -166,26 +168,30 @@ python scripts/ingestion/fetch_amfi_nav.py
 ### 3. Transform & load (build the star schema)
 
 ```bash
-# Clean and validate NAV history
+# Clean and validate NAV / transaction history
 python scripts/transformation/clean_nav.py
+python scripts/transformation/clean_transactions.py
 
-# Build dimensions + facts and load into the database
+# Create the schema (DDL), then load dimensions and facts
+python scripts/etl/run_ddl.py
 python scripts/etl/load_dimensions.py
+python scripts/etl/load_facts.py
 ```
 
-### 4. Compute analytics + forecasts
+### 4. Compute analytics
 
 ```bash
-python scripts/analytics/compute_metrics.py
-python scripts/ml/forecast_nav.py
+python scripts/analytics/metrics_returns.py        # CAGR, rolling returns
+python scripts/analytics/metrics_risk.py           # volatility, drawdown
+python scripts/analytics/metrics_risk_adjusted.py  # Sharpe, Sortino, Treynor, alpha/beta
+python scripts/analytics/metrics_market.py         # market/AUM aggregates
 ```
 
-### 5. Explore the dashboard & app
+### 5. Explore the dashboard
 
 - **Power BI:** open `powerbi/mf_analytics_dashboard_p4.pbix` (apply theme `powerbi/theme_mf_analytics.json`).
-- **Streamlit:** `streamlit run streamlit/app.py` → open `http://localhost:8501`.
 
-> Cloud path: the Azure Data Factory pipeline orchestrates the ingestion → blob → SQL load in the cloud (pipeline run **Succeeded** — see screenshot above).
+> Cloud path: the Azure Data Factory pipeline orchestrates the ingestion → blob → SQL load in the cloud (pipeline run **Succeeded** — see screenshot above). Run the cloud ETL via `scripts/etl/run_azure_etl.py` / `scripts/etl/trigger_adf_pipeline.py`.
 
 ---
 
@@ -200,14 +206,13 @@ mf-analytics-platform/
 ├── scripts/
 │   ├── ingestion/        # Data acquisition (Yahoo, AMFI, Kaggle)
 │   ├── transformation/   # Cleaning, validation, feature engineering
-│   ├── etl/              # Dimension/fact build + load
+│   ├── etl/              # DDL run, dimension/fact load, Azure ETL, ADF trigger
 │   ├── analytics/        # Financial metric calculations
-│   └── ml/               # Prophet forecasting
-├── sql/
-│   ├── ddl/              # CREATE TABLE scripts (star schema)
-│   ├── dml/              # INSERT, UPDATE, MERGE
-│   ├── views/            # Analytical views
-│   └── procs/            # Stored procedures
+│   ├── ml/               # Prophet forecasting (roadmap)
+│   └── sql/              # SQL layer:
+│       ├── ddl/          #   CREATE TABLE scripts (star schema)
+│       ├── views/        #   Analytical views
+│       └── procs/        #   Stored procedures
 ├── azure/
 │   ├── adf_pipelines/    # ADF JSON pipeline definitions
 │   ├── functions/        # Azure Functions code
