@@ -78,5 +78,7 @@ secrets/
 models/*.pkl
 !models/.gitkeep
 
-# Streamlit
+# Streamlit — ignore real secrets anywhere (root-anchored rule misses subdirs)
 .streamlit/secrets.toml
+**/secrets.toml
+!**/secrets.toml.example
