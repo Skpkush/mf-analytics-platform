@@ -49,6 +49,13 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 NAV_OUTLIER_Z_THRESHOLD = 5.0
 MIN_VALID_NAV = 0.01
 
+# Local-spike detector: a transient 1-2 day glitch (e.g. a 10x decimal
+# error) barely moves a per-series mean/std on a long trending series, so
+# the global z-score misses it. Flagging large deviations from a centred
+# rolling median catches these while ignoring gradual trends.
+NAV_SPIKE_WINDOW = 7          # centred rolling-median window (trading days)
+NAV_SPIKE_REL_THRESHOLD = 0.5  # flag if |nav / local median - 1| > 50%
+
 # Unified column order for all processed NAV parquets.
 # Day 3 ETL reads this exact schema to load Fact_NAV.
 UNIFIED_COLS = [
@@ -188,9 +195,21 @@ def flag_nav_outliers(
     value_col: str = "nav",
     group_col: str = "ticker",
     z_threshold: float = NAV_OUTLIER_Z_THRESHOLD,
+    date_col: str = "date",
+    spike_window: int = NAV_SPIKE_WINDOW,
+    spike_threshold: float = NAV_SPIKE_REL_THRESHOLD,
 ) -> pd.DataFrame:
     """
-    Add 'is_outlier' column: True where per-group z-score exceeds threshold.
+    Add 'is_outlier' column flagging both level shifts and local spikes.
+
+    Two complementary detectors are OR-combined:
+      * Level z-score (|z| > z_threshold) — catches a series that drifts far
+        from its own mean.
+      * Local rolling-median deviation (|value / median - 1| > spike_threshold)
+        — catches transient 1-2 day glitches (e.g. a 10x decimal error) that a
+        global z-score misses on a long trending series. Robust to a short
+        burst of consecutive bad points because the centred median window
+        spans clean neighbours on both sides.
 
     Flags rather than removes — downstream analytics can decide whether
     to exclude outliers. The flag is preserved through to the star schema
@@ -199,8 +218,13 @@ def flag_nav_outliers(
     Args:
         df: Input DataFrame.
         value_col: Column to analyse for outliers.
-        group_col: Column used for per-series z-score computation.
+        group_col: Column used for per-series computation.
         z_threshold: Flag rows with |z| > this value.
+        date_col: Column used to order each series for the rolling median.
+            If absent, the spike detector is skipped.
+        spike_window: Centred rolling-median window size (rows).
+        spike_threshold: Flag rows deviating more than this fraction from
+            their local median.
 
     Returns:
         DataFrame with added 'is_outlier' boolean column.
@@ -209,7 +233,25 @@ def flag_nav_outliers(
     mean = df.groupby(group_col)[value_col].transform("mean")
     std = df.groupby(group_col)[value_col].transform("std").replace(0, np.nan)
     z = (df[value_col] - mean) / std
-    df["is_outlier"] = z.abs() > z_threshold
+    level_outlier = z.abs() > z_threshold
+
+    # Local-spike detector via centred rolling median (needs date ordering).
+    if date_col in df.columns:
+        ordered_idx = df.sort_values([group_col, date_col]).index
+        ordered = df.loc[ordered_idx]
+        median = (
+            ordered.groupby(group_col)[value_col]
+            .transform(
+                lambda s: s.rolling(spike_window, center=True, min_periods=3).median()
+            )
+            .reindex(df.index)
+        )
+        rel_dev = (df[value_col] - median).abs() / median.replace(0, np.nan)
+        spike_outlier = rel_dev > spike_threshold
+    else:
+        spike_outlier = pd.Series(False, index=df.index)
+
+    df["is_outlier"] = (level_outlier | spike_outlier).fillna(False)
 
     n_flagged = int(df["is_outlier"].sum())
     if n_flagged > 0:
