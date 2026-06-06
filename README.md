@@ -131,9 +131,14 @@ DDL: [`scripts/sql/ddl/`](scripts/sql/ddl/) · Views: [`scripts/sql/views/`](scr
 
 ---
 
-## 🤖 ML Module *(roadmap)*
+## 🤖 ML Module
 
-**NAV Forecasting (Prophet)** — Predict 30/60/90-day NAV trajectories with confidence intervals for selected funds. Planned in `scripts/ml/`, surfaced via the Streamlit app (`streamlit/`).
+**NAV Forecasting (Prophet)** — Forecasts 30/60/90-day NAV trajectories with confidence-interval bands for the Yahoo ETF/benchmark universe (≥ 200 trading days of history). Implemented in [`scripts/ml/forecast_nav.py`](scripts/ml/forecast_nav.py) and served live through the **Streamlit app** ([`streamlit/`](streamlit/)), deployable on the Hostinger VPS behind Traefik (`streamlit/docker-compose.yml`).
+
+```bash
+python scripts/ml/forecast_nav.py --fund-code NIFTYBEES.NS   # CLI forecast
+streamlit run streamlit/app.py                               # interactive app
+```
 
 ---
 
@@ -187,9 +192,17 @@ python scripts/analytics/metrics_risk_adjusted.py  # Sharpe, Sortino, Treynor, a
 python scripts/analytics/metrics_market.py         # market/AUM aggregates
 ```
 
-### 5. Explore the dashboard
+### 5. Forecast NAV (Prophet)
+
+```bash
+python scripts/ml/forecast_nav.py --list                  # forecastable funds
+python scripts/ml/forecast_nav.py --fund-code NIFTYBEES.NS # 30/60/90-day forecast
+```
+
+### 6. Explore the dashboard & app
 
 - **Power BI:** open `powerbi/mf_analytics_dashboard_p4.pbix` (apply theme `powerbi/theme_mf_analytics.json`).
+- **Streamlit:** `streamlit run streamlit/app.py` → open `http://localhost:8501` (interactive NAV forecasting; deploy notes in [`streamlit/README.md`](streamlit/README.md)).
 
 > Cloud path: the Azure Data Factory pipeline orchestrates the ingestion → blob → SQL load in the cloud (pipeline run **Succeeded** — see screenshot above). Run the cloud ETL via `scripts/etl/run_azure_etl.py` / `scripts/etl/trigger_adf_pipeline.py`.
 
@@ -208,7 +221,7 @@ mf-analytics-platform/
 │   ├── transformation/   # Cleaning, validation, feature engineering
 │   ├── etl/              # DDL run, dimension/fact load, Azure ETL, ADF trigger
 │   ├── analytics/        # Financial metric calculations
-│   ├── ml/               # Prophet forecasting (roadmap)
+│   ├── ml/               # Prophet NAV forecasting
 │   └── sql/              # SQL layer:
 │       ├── ddl/          #   CREATE TABLE scripts (star schema)
 │       ├── views/        #   Analytical views

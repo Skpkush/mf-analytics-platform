@@ -1,0 +1,34 @@
+# ============================================================
+# Deploy the NAV Forecasting app behind the existing Traefik
+# reverse proxy on the Hostinger VPS (srv973497.hstgr.cloud).
+#
+#   cd mf-analytics-platform
+#   docker compose -f streamlit/docker-compose.yml up -d --build
+#
+# Assumes a Traefik instance already running with an external
+# docker network named "traefik" and an HTTPS entrypoint
+# "websecure" + cert resolver "letsencrypt" (adjust to match
+# your Traefik config). DB credentials come from the repo .env.
+# ============================================================
+services:
+  mf-nav-app:
+    build:
+      context: ..
+      dockerfile: streamlit/Dockerfile
+    image: mf-nav-app:latest
+    container_name: mf-nav-app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mfnav.rule=Host(`nav.srv973497.hstgr.cloud`)"
+      - "traefik.http.routers.mfnav.entrypoints=websecure"
+      - "traefik.http.routers.mfnav.tls.certresolver=letsencrypt"
+      - "traefik.http.services.mfnav.loadbalancer.server.port=8501"
+
+networks:
+  traefik:
+    external: true
