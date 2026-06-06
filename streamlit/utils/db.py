@@ -41,24 +41,34 @@ CACHE_TTL = 3600  # 1 hour, per spec
 # Engine / configuration
 # ----------------------------------------------------------------
 def _resolve_db_config() -> dict[str, object]:
-    """Return DB connection params from st.secrets, falling back to env."""
+    """Return DB connection params from st.secrets, falling back to env.
+
+    Accepts either secrets section name — `[database]` (Streamlit Cloud style)
+    or `[postgres]` — and either key spelling for the db/user fields
+    (`database`/`username` or `dbname`/`user`). This lets the same code run on
+    Streamlit Community Cloud, the VPS, and locally without edits.
+    """
     try:
-        s = st.secrets["postgres"]  # raises if no secrets file / section
-        return {
-            "host": s["host"],
-            "port": int(s["port"]),
-            "dbname": s["dbname"],
-            "user": s["user"],
-            "password": s["password"],
-        }
+        for section in ("database", "postgres"):
+            if section in st.secrets:
+                s = st.secrets[section]
+                return {
+                    "host": s["host"],
+                    "port": int(s["port"]) if "port" in s else 5432,
+                    "dbname": s["dbname"] if "dbname" in s else s["database"],
+                    "user": s["user"] if "user" in s else s["username"],
+                    "password": s["password"],
+                }
     except Exception:
-        return {
-            "host": os.getenv("LOCAL_DB_HOST", "localhost"),
-            "port": int(os.getenv("LOCAL_DB_PORT", "5432")),
-            "dbname": os.getenv("LOCAL_DB_NAME", "mf_analytics"),
-            "user": os.getenv("LOCAL_DB_USER", "postgres"),
-            "password": os.getenv("LOCAL_DB_PASSWORD", ""),
-        }
+        pass
+
+    return {
+        "host": os.getenv("LOCAL_DB_HOST", "localhost"),
+        "port": int(os.getenv("LOCAL_DB_PORT", "5432")),
+        "dbname": os.getenv("LOCAL_DB_NAME", "mf_analytics"),
+        "user": os.getenv("LOCAL_DB_USER", "postgres"),
+        "password": os.getenv("LOCAL_DB_PASSWORD", ""),
+    }
 
 
 @st.cache_resource(show_spinner=False)
