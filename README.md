@@ -268,3 +268,7 @@ MIT License — see LICENSE file.
 Data Analyst | Analytics Engineer | Founder, Finonus Capital
 📧 sumit@finonuscapital.com
 🔗 [GitHub](https://github.com/Skpkush)
+
+---
+
+_Last updated: June 2026_
