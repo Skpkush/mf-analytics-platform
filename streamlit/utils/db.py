@@ -21,6 +21,7 @@ both universes explicitly so pages can degrade gracefully.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -33,69 +34,100 @@ from sqlalchemy.engine import Engine
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
+logger = logging.getLogger("mf.db")
+
 CACHE_TTL = 3600  # 1 hour, per spec
 
+# Recognised secrets section names (Streamlit Cloud style first).
+_DB_SECTIONS = ("database", "postgres", "supabase")
+# A secrets table is "DB-shaped" if it carries a host under any of these keys.
+_HOST_KEYS = ("host", "hostname")
 
-# ----------------------------------------------------------------
-# Engine / configuration
-# ----------------------------------------------------------------
-def _have_secrets_section() -> str | None:
-    """Return the name of the first DB secrets section present, else None.
 
-    Accessing st.secrets when no secrets.toml exists raises (no secrets file) —
-    that is the *legitimate* local-dev signal to fall back to .env, so it is the
-    only condition we swallow here. Any other failure must surface.
+def _secrets_top_level_keys() -> list[str] | None:
+    """Top-level keys in st.secrets, or None if there is no secrets file.
+
+    Reading st.secrets with no secrets.toml raises — that is the *only*
+    legitimate signal to fall back to .env (local dev). Anything else must
+    surface, so we never blanket-swallow here.
     """
     try:
-        for section in ("database", "postgres"):
-            if section in st.secrets:
-                return section
-    except Exception:
-        # No secrets file at all (local dev) — fall back to .env silently.
+        return list(st.secrets.keys())
+    except Exception:  # StreamlitSecretNotFoundError — no secrets file at all
         return None
-    return None
+
+
+def _extract_db_config(s: object, where: str) -> dict[str, object]:
+    """Map a secrets table (or st.secrets itself, for flat keys) to db params.
+
+    Accepts either key spelling for the db/user fields (`database`/`username`
+    or `dbname`/`user`). Raises a loud, descriptive KeyError on a missing key —
+    never silently degrades to localhost.
+    """
+    present = list(s.keys())  # type: ignore[attr-defined]
+    try:
+        host = s["host"] if "host" in s else s["hostname"]  # type: ignore[operator]
+        return {
+            "host": host,
+            "port": int(s["port"]) if "port" in s else 5432,  # type: ignore[operator]
+            "dbname": s["dbname"] if "dbname" in s else s["database"],  # type: ignore[index,operator]
+            "user": s["user"] if "user" in s else s["username"],  # type: ignore[index,operator]
+            "password": s["password"],  # type: ignore[index]
+            "sslmode": s["sslmode"] if "sslmode" in s else None,  # type: ignore[index,operator]
+        }
+    except KeyError as exc:
+        raise KeyError(
+            f"Streamlit secrets {where} is missing required key {exc}. "
+            f"Keys present: {present}. Expected: host(|hostname), port, "
+            f"dbname|database, user|username, password."
+        ) from exc
 
 
 def _resolve_db_config() -> dict[str, object]:
-    """Return DB connection params from st.secrets, falling back to env.
+    """Return DB connection params, reading st.secrets FIRST, env only as a
+    true last resort when no secrets file exists.
 
-    Accepts either secrets section name — `[database]` (Streamlit Cloud style)
-    or `[postgres]` — and either key spelling for the db/user fields
-    (`database`/`username` or `dbname`/`user`). This lets the same code run on
-    Streamlit Community Cloud, the VPS, and locally without edits.
+    Resolution order:
+      1. st.secrets[<section>]  — section ∈ {database, postgres, supabase}
+      2. st.secrets flat keys   — host/port/... at the top level (no header)
+      3. .env LOCAL_DB_*        — ONLY when there is no secrets file at all
 
-    IMPORTANT: when a secrets section IS present, a missing/misspelled key
-    raises loudly instead of silently degrading to the localhost .env defaults.
-    A silent fallback on Cloud (where there is no local Postgres) produced a
-    misleading "Cannot reach analytics database" that hid the real config bug.
+    When a secrets file exists but contains no DB-shaped config, this raises a
+    loud error instead of silently connecting to localhost (the bug that made
+    Streamlit Cloud hit 127.0.0.1 despite secrets being set).
     """
-    section = _have_secrets_section()
-    if section is not None:
-        s = st.secrets[section]
-        present = list(s.keys())
-        try:
-            return {
-                "host": s["host"],
-                "port": int(s["port"]) if "port" in s else 5432,
-                "dbname": s["dbname"] if "dbname" in s else s["database"],
-                "user": s["user"] if "user" in s else s["username"],
-                "password": s["password"],
-                "sslmode": s["sslmode"] if "sslmode" in s else None,
-            }
-        except KeyError as exc:
-            raise KeyError(
-                f"Streamlit secrets [{section}] is missing required key {exc}. "
-                f"Keys present: {present}. Expected: host, port, "
-                f"dbname|database, user|username, password."
-            ) from exc
+    top_keys = _secrets_top_level_keys()
 
-    return {
+    if top_keys is not None:
+        # A secrets file IS present on this host — never fall back to localhost.
+        # 1) Named section.
+        for section in _DB_SECTIONS:
+            if section in top_keys:
+                cfg = _extract_db_config(st.secrets[section], f"[{section}]")
+                logger.warning("DB config source: st.secrets[%s] host=%s", section, cfg["host"])
+                return cfg
+        # 2) Flat top-level keys (user pasted host=... without a [database] header).
+        if any(k in top_keys for k in _HOST_KEYS):
+            cfg = _extract_db_config(st.secrets, "(top-level)")
+            logger.warning("DB config source: st.secrets top-level host=%s", cfg["host"])
+            return cfg
+        # 3) Secrets exist but no DB config — fail loudly, do NOT use localhost.
+        raise KeyError(
+            "Streamlit secrets are present but contain no database config. "
+            f"Top-level keys found: {top_keys}. Add a [database] section with "
+            "host, port, dbname|database, user|username, password."
+        )
+
+    # No secrets file at all → genuine local dev. Use .env (defaults to localhost).
+    cfg = {
         "host": os.getenv("LOCAL_DB_HOST", "localhost"),
         "port": int(os.getenv("LOCAL_DB_PORT", "5432")),
         "dbname": os.getenv("LOCAL_DB_NAME", "mf_analytics"),
         "user": os.getenv("LOCAL_DB_USER", "postgres"),
         "password": os.getenv("LOCAL_DB_PASSWORD", ""),
     }
+    logger.warning("DB config source: .env fallback (no secrets file) host=%s", cfg["host"])
+    return cfg
 
 
 @st.cache_resource(show_spinner=False)
@@ -115,6 +147,10 @@ def get_engine() -> Engine:
     # Supabase (and Streamlit Cloud egress) require TLS. sslmode defaults to
     # "require" but can be overridden per-section via secrets for local Postgres.
     sslmode = str(c.get("sslmode") or os.getenv("DB_SSLMODE") or "require")
+    logger.warning(
+        "Creating engine -> host=%s port=%s db=%s user=%s sslmode=%s",
+        c["host"], c["port"], c["dbname"], c["user"], sslmode,
+    )
     return create_engine(
         url,
         pool_pre_ping=True,
