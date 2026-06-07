@@ -32,30 +32,15 @@ wheels/
 .ipynb_checkpoints
 *.ipynb_checkpoints/
 
-# Data (don't commit raw data)
-data/raw/*
-data/processed/*
-data/external/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!data/external/.gitkeep
 
 # Logs
 logs/
 *.log
 
-# Azure
-.azure/
-*.publishsettings
-# ADF linked service files contain real credentials after placeholder replacement
-azure/linked_services/ls_blob_mfanalytics.json
-azure/linked_services/ls_sql_mfanalytics.json
 
 # Power BI
 *.pbix.bak
 *.tmp
-# PBIX repack intermediates (staging dirs + per-page output files).
-# The final 4-page dashboard (p4) is tracked via Git LFS; p1/p2/p3 stay ignored.
 powerbi/_*_stage/
 powerbi/mf_analytics_dashboard_p[123].pbix
 
@@ -75,11 +60,11 @@ Thumbs.db
 *.key
 secrets/
 
-# ML models (commit small ones, ignore large)
+# ML models
 models/*.pkl
 !models/.gitkeep
 
-# Streamlit — ignore real secrets anywhere (root-anchored rule misses subdirs)
+# Streamlit secrets
 .streamlit/secrets.toml
 **/secrets.toml
 !**/secrets.toml.example
