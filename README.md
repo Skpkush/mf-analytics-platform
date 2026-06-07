@@ -215,35 +215,56 @@ python scripts/ml/forecast_nav.py --fund-code NIFTYBEES.NS # 30/60/90-day foreca
 
 ```
 mf-analytics-platform/
-├── data/
-│   ├── raw/              # Raw ingested data
-│   ├── processed/        # Cleaned, transformed data
-│   └── external/         # Benchmark, risk-free rate data
-├── scripts/
-│   ├── ingestion/        # Data acquisition (Yahoo, AMFI, Kaggle)
-│   ├── transformation/   # Cleaning, validation, feature engineering
-│   ├── etl/              # DDL run, dimension/fact load, Azure ETL, ADF trigger
-│   ├── analytics/        # Financial metric calculations
-│   ├── ml/               # Prophet NAV forecasting
-│   └── sql/              # SQL layer:
-│       ├── ddl/          #   CREATE TABLE scripts (star schema)
-│       ├── views/        #   Analytical views
-│       └── procs/        #   Stored procedures
 ├── azure/
-│   ├── adf_pipelines/    # ADF JSON pipeline definitions
-│   ├── functions/        # Azure Functions code
-│   └── arm_templates/    # Infrastructure as code
-├── powerbi/              # PBIX file + theme + DAX measures documentation
-├── streamlit/            # Streamlit client-facing app
+│   ├── adf_pipelines/        # ADF JSON pipeline definitions
+│   ├── alerts/               # ADF failure alert configurations
+│   ├── arm_templates/        # Infrastructure as code
+│   ├── datasets/             # ADF dataset definitions
+│   ├── functions/
+│   │   └── fn_compute_daily_metrics/  # Azure Function daily refresh
+│   ├── pipelines/            # ADF pipeline JSON definitions
+│   └── triggers/             # ADF schedule triggers
+├── data/
+│   ├── processed/            # Cleaned, transformed data (gitignored)
+│   └── external/             # Benchmark + risk-free rate data (gitignored)
 ├── docs/
-│   ├── architecture/     # Architecture diagrams
-│   ├── case_study/       # Final case study PDF
-│   └── screenshots/      # Dashboard + pipeline screenshots
-├── notebooks/            # Jupyter notebooks for exploration
-├── tests/                # Unit tests
-├── PROJECT_PLAN.md       # Week-by-week execution plan
-├── requirements.txt      # Python dependencies
-├── .env.example          # Environment variable template
+│   ├── architecture/         # Architecture diagrams + Mermaid
+│   ├── case_study/           # Case study PDF (planned)
+│   ├── screenshots/          # Dashboard + pipeline screenshots
+│   ├── daily_log.md          # Day-by-day build log
+│   └── data_dictionary.md    # Schema + field definitions
+├── notebooks/
+│   └── 01_data_exploration.ipynb  # EDA notebook
+├── powerbi/
+│   ├── mf_analytics_dashboard_p4.pbix  # 4-page dashboard (gitignored — built locally)
+│   └── theme_mf_analytics.json         # Navy theme file
+├── scripts/
+│   ├── ingestion/            # AMFI + Yahoo Finance data acquisition
+│   ├── transformation/       # Cleaning, validation, feature engineering
+│   ├── etl/                  # DDL run, dimension/fact load, Azure ETL
+│   ├── analytics/            # CAGR, Sharpe, Beta, Drawdown metrics
+│   ├── ml/                   # Prophet NAV forecasting
+│   └── sql/
+│       ├── ddl/              # CREATE TABLE scripts (star schema)
+│       ├── views/            # Analytical views (vw_fund_performance)
+│       └── procs/            # Stored procedures
+├── streamlit/
+│   ├── .streamlit/           # Theme + secrets template
+│   ├── pages/                # 5 app pages (Explorer, Forecast, Risk, SIP, Portfolio)
+│   ├── utils/                # DB, metrics, charts utilities
+│   ├── app.py                # Home page + KPI cards
+│   ├── Dockerfile            # Container definition
+│   ├── docker-compose.yml    # VPS deployment config (alternative)
+│   ├── requirements.txt      # App-only dependencies
+│   └── README.md             # Deploy instructions
+├── tests/
+│   ├── conftest.py           # Pytest fixtures
+│   └── test_data_quality.py  # Data quality unit tests
+├── .env.example              # Environment variable template
+├── .gitignore                # Secrets + venv excluded
+├── CLAUDE.md                 # Claude Code project context
+├── PROJECT_PLAN.md           # Week-by-week execution plan
+├── requirements.txt          # Full Python dependencies
 └── README.md
 ```
 
