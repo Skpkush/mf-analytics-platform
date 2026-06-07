@@ -24,7 +24,7 @@
 |---|---|
 | **NAV rows processed** | ~100K NAV observations |
 | **Fund schemes covered** | 14,384 |
-| **Funds with computed metrics** | 16 (full time-series) |
+| **Funds with computed metrics** | 16 (Yahoo ETF universe) |
 | **AMCs covered** | 51 |
 | **Power BI dashboard pages** | 4 |
 | **Cloud ETL** | Azure Data Factory pipeline (✅ Succeeded) |
