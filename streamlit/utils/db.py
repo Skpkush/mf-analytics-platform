@@ -29,7 +29,6 @@ import streamlit as st
 from dotenv import load_dotenv
 from sqlalchemy import URL, bindparam, create_engine, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import SQLAlchemyError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
@@ -40,6 +39,23 @@ CACHE_TTL = 3600  # 1 hour, per spec
 # ----------------------------------------------------------------
 # Engine / configuration
 # ----------------------------------------------------------------
+def _have_secrets_section() -> str | None:
+    """Return the name of the first DB secrets section present, else None.
+
+    Accessing st.secrets when no secrets.toml exists raises (no secrets file) —
+    that is the *legitimate* local-dev signal to fall back to .env, so it is the
+    only condition we swallow here. Any other failure must surface.
+    """
+    try:
+        for section in ("database", "postgres"):
+            if section in st.secrets:
+                return section
+    except Exception:
+        # No secrets file at all (local dev) — fall back to .env silently.
+        return None
+    return None
+
+
 def _resolve_db_config() -> dict[str, object]:
     """Return DB connection params from st.secrets, falling back to env.
 
@@ -47,20 +63,31 @@ def _resolve_db_config() -> dict[str, object]:
     or `[postgres]` — and either key spelling for the db/user fields
     (`database`/`username` or `dbname`/`user`). This lets the same code run on
     Streamlit Community Cloud, the VPS, and locally without edits.
+
+    IMPORTANT: when a secrets section IS present, a missing/misspelled key
+    raises loudly instead of silently degrading to the localhost .env defaults.
+    A silent fallback on Cloud (where there is no local Postgres) produced a
+    misleading "Cannot reach analytics database" that hid the real config bug.
     """
-    try:
-        for section in ("database", "postgres"):
-            if section in st.secrets:
-                s = st.secrets[section]
-                return {
-                    "host": s["host"],
-                    "port": int(s["port"]) if "port" in s else 5432,
-                    "dbname": s["dbname"] if "dbname" in s else s["database"],
-                    "user": s["user"] if "user" in s else s["username"],
-                    "password": s["password"],
-                }
-    except Exception:
-        pass
+    section = _have_secrets_section()
+    if section is not None:
+        s = st.secrets[section]
+        present = list(s.keys())
+        try:
+            return {
+                "host": s["host"],
+                "port": int(s["port"]) if "port" in s else 5432,
+                "dbname": s["dbname"] if "dbname" in s else s["database"],
+                "user": s["user"] if "user" in s else s["username"],
+                "password": s["password"],
+                "sslmode": s["sslmode"] if "sslmode" in s else None,
+            }
+        except KeyError as exc:
+            raise KeyError(
+                f"Streamlit secrets [{section}] is missing required key {exc}. "
+                f"Keys present: {present}. Expected: host, port, "
+                f"dbname|database, user|username, password."
+            ) from exc
 
     return {
         "host": os.getenv("LOCAL_DB_HOST", "localhost"),
@@ -85,17 +112,36 @@ def get_engine() -> Engine:
         port=int(c["port"]),
         database=str(c["dbname"]),
     )
-    return create_engine(url, pool_pre_ping=True, pool_recycle=1800)
+    # Supabase (and Streamlit Cloud egress) require TLS. sslmode defaults to
+    # "require" but can be overridden per-section via secrets for local Postgres.
+    sslmode = str(c.get("sslmode") or os.getenv("DB_SSLMODE") or "require")
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        connect_args={"sslmode": sslmode},
+    )
+
+
+def last_connection_error() -> str | None:
+    """Run a trivial query and return None on success, or the error string.
+
+    Unlike check_connection(), this preserves the underlying driver message so
+    the UI/logs can show the real reason (SSL, host unreachable, auth, missing
+    secret key) instead of a generic "cannot reach database".
+    """
+    try:
+        with get_engine().connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return None
+    except Exception as exc:  # SQLAlchemyError + KeyError from _resolve_db_config
+        # str(exc) on a DBAPIError already includes the psycopg2 diagnostic.
+        return f"{type(exc).__name__}: {exc}"
 
 
 def check_connection() -> bool:
     """Return True if the database answers a trivial query."""
-    try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return True
-    except SQLAlchemyError:
-        return False
+    return last_connection_error() is None
 
 
 def _read_sql(sql: str, params: dict | None = None) -> pd.DataFrame:

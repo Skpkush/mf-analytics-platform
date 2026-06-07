@@ -49,12 +49,15 @@ def main() -> None:
     )
 
     # ---- Graceful DB-down fallback ----
-    if not db.check_connection():
+    db_error = db.last_connection_error()
+    if db_error is not None:
         st.error(
             "⚠️ Cannot reach the analytics database. "
             "Check the connection settings (`.streamlit/secrets.toml` or `.env`). "
             "The app stays up; data will load once the DB is reachable."
         )
+        with st.expander("Connection error detail"):
+            st.code(db_error)
         st.stop()
 
     try:
