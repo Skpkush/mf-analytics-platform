@@ -20,8 +20,9 @@
 
 | Metric | Value |
 |---|---|
-| **NAV rows processed** | 9M+ |
-| **Funds with computed metrics** | 10,571 |
+| **NAV rows processed** | ~100K NAV observations |
+| **Fund schemes covered** | 14,384 |
+| **Funds with computed metrics** | 16 (full time-series) |
 | **AMCs covered** | 51 |
 | **Power BI dashboard pages** | 4 |
 | **Cloud ETL** | Azure Data Factory pipeline (✅ Succeeded) |
