@@ -34,7 +34,7 @@ graph TB
     end
 
     subgraph "Deployment"
-        VPS[Hostinger VPS<br/>Traefik + Docker]
+        VPS[Streamlit Community Cloud<br/>Supabase PostgreSQL backend]
     end
 
     YF --> PY1
@@ -133,10 +133,10 @@ graph TB
 
 ### 11. Application Layer (Streamlit)
 - **Framework:** Streamlit 1.30+
-- **Data source (primary):** Local PostgreSQL on VPS
+- **Data source (primary):** Supabase PostgreSQL (cloud)
 - **Data source (Azure window):** Azure SQL DB via pyodbc
-- **Pages:** 4 (SIP Planner, Fund Comparison, Risk Profiler, NAV Forecast)
-- **Deployment:** Hostinger VPS, Docker + Traefik, SSL via Let's Encrypt
+- **Pages:** 5 (Fund Explorer, NAV Forecast, Risk Dashboard, SIP Calculator, Portfolio Analyzer)
+- **Deployment:** Streamlit Community Cloud (Supabase PostgreSQL backend)
 
 ---
 
@@ -161,7 +161,7 @@ graph TB
 | Import mode in Power BI (not DirectQuery) | Faster dashboards | Requires nightly refresh |
 | Streamlit over Dash | Faster dev, simpler | Less customizable |
 | PostgreSQL fallback | Azure trial expires in 15 days | Duplicate data layer to maintain |
-| Hostinger VPS over Azure App Service | Already paid for, no extra cost | Manual deployment |
+| Streamlit Community Cloud over self-hosted VPS | Free, zero-ops, public always-on URL | Less control; cold starts on idle |
 
 ---
 

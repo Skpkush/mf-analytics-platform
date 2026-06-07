@@ -4,7 +4,9 @@
 
 **Built by:** Sumit Kumar Prajapat | [GitHub: Skpkush](https://github.com/Skpkush)
 **Status:** ✅ Complete — End-to-end pipeline live (ingestion → Azure ADF → Star Schema → Power BI)
+**🔴 Live Demo:** [mf-analytics-platform.streamlit.app](https://mf-analytics-platform-nmndaxxuzmzhckvswpue3h.streamlit.app/)
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?logo=streamlit&logoColor=white)](https://mf-analytics-platform-nmndaxxuzmzhckvswpue3h.streamlit.app/)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![Pandas](https://img.shields.io/badge/pandas-2.x-150458?logo=pandas&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white)
@@ -51,7 +53,7 @@ This platform delivers exactly that.
                                                         ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │  Streamlit App  │◀───│  Power BI       │◀───│  Azure SQL DB   │
-│  (Hostinger VPS)│    │  4-Page         │    │  Star Schema    │
+│(Streamlit Cloud)│    │  4-Page         │    │  Star Schema    │
 └─────────────────┘    │  Dashboard      │    │  5 Dim + 4 Fact │
         ▲              └─────────────────┘    └─────────────────┘
         │                                              │
@@ -86,7 +88,7 @@ DDL: [`scripts/sql/ddl/`](scripts/sql/ddl/) · Views: [`scripts/sql/views/`](scr
 | **Analytics** | Python (numpy, scipy, statsmodels) |
 | **ML** | Prophet (NAV forecasting) |
 | **BI** | Power BI Desktop — 4 pages, 25+ DAX measures |
-| **App** | Streamlit (deployed on Hostinger VPS) |
+| **App** | Streamlit (deployed on Streamlit Community Cloud) |
 | **Orchestration** | ADF pipelines + Azure Functions |
 | **Version Control** | Git + GitHub |
 
@@ -134,7 +136,7 @@ DDL: [`scripts/sql/ddl/`](scripts/sql/ddl/) · Views: [`scripts/sql/views/`](scr
 
 ## 🤖 ML Module
 
-**NAV Forecasting (Prophet)** — Forecasts 30/60/90-day NAV trajectories with confidence-interval bands for the Yahoo ETF/benchmark universe (≥ 200 trading days of history). Implemented in [`scripts/ml/forecast_nav.py`](scripts/ml/forecast_nav.py) and served live through the **Streamlit app** ([`streamlit/`](streamlit/)), deployable on the Hostinger VPS behind Traefik (`streamlit/docker-compose.yml`).
+**NAV Forecasting (Prophet)** — Forecasts 30/60/90-day NAV trajectories with confidence-interval bands for the Yahoo ETF/benchmark universe (≥ 200 trading days of history). Implemented in [`scripts/ml/forecast_nav.py`](scripts/ml/forecast_nav.py) and served live through the **Streamlit app** ([`streamlit/`](streamlit/)), deployed on **Streamlit Community Cloud** with a Supabase PostgreSQL backend.
 
 ```bash
 python scripts/ml/forecast_nav.py --fund-code NIFTYBEES.NS   # CLI forecast
