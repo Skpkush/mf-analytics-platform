@@ -96,6 +96,9 @@ DDL: [`scripts/sql/ddl/`](scripts/sql/ddl/) · Views: [`scripts/sql/views/`](scr
 
 ## 📊 Dashboard Pages (Power BI)
 
+📥 **Download:** [Power BI Dashboard (.pbix)](powerbi/mf_analytics_dashboard_p4.pbix) (Git LFS) ·
+🖼️ **Screenshots:** [docs/screenshots/](docs/screenshots/)
+
 1. **Executive Overview** — AUM, top funds, market summary, KPIs
 2. **Fund Performance Analytics** — CAGR, rolling returns, benchmark comparison
 3. **Investor Analytics** — SIP trends, segmentation, retention
