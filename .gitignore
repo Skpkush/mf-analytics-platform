@@ -54,9 +54,10 @@ azure/linked_services/ls_sql_mfanalytics.json
 # Power BI
 *.pbix.bak
 *.tmp
-# PBIX repack intermediates (staging dirs + per-page output files)
+# PBIX repack intermediates (staging dirs + per-page output files).
+# The final 4-page dashboard (p4) is tracked via Git LFS; p1/p2/p3 stay ignored.
 powerbi/_*_stage/
-powerbi/mf_analytics_dashboard_p*.pbix
+powerbi/mf_analytics_dashboard_p[123].pbix
 
 # OS
 .DS_Store
