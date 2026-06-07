@@ -292,8 +292,8 @@ MIT License — see LICENSE file.
 ## 👤 Author
 
 **Sumit Kumar Prajapat**
-Data Analyst | Analytics Engineer | Founder, Finonus Capital
-📧 sumit@finonuscapital.com
+Data Analyst | Analytics Engineer | 
+📧 sumitkprajapat29@gmail.com
 🔗 [GitHub](https://github.com/Skpkush)
 
 ---
