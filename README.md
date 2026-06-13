@@ -3,7 +3,9 @@
 > Production-style, enterprise-grade Mutual Fund Analytics Platform demonstrating end-to-end Data Engineering, Advanced Analytics, Cloud Architecture, and Executive BI Reporting.
 
 **Built by:** Sumit Kumar Prajapat | [GitHub: Skpkush](https://github.com/Skpkush)
+
 **Status:** ✅ Complete — End-to-end pipeline live (ingestion → Azure ADF → Star Schema → Power BI)
+
 **🔴 Live Demo:** [mf-analytics-platform.streamlit.app](https://mf-analytics-platform-nmndaxxuzmzhckvswpue3h.streamlit.app/)
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?logo=streamlit&logoColor=white)](https://mf-analytics-platform-nmndaxxuzmzhckvswpue3h.streamlit.app/)
